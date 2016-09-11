@@ -123,6 +123,28 @@ $(document).ready(function () {
 </div>
 
 
+<hr />
+<div id="notes" class="section level1">
+<h1>NOTES</h1>
+<div id="missing-data" class="section level2">
+<h2>Missing Data:</h2>
+<ul>
+<li>TEAM_BATTING_SO, TEAM_BASERUN_SB, TEAM_PITCHING_SO and TEAM_FIELDING_DP are 90% or so complete, can we fill missing values with mean/median</li>
+<li>TEAM_BASERUN_CS, TEAM_BATTING_HBP are on the very incomplete side (66%, 8% respectively). Perhaps we can conver to Percent of Games Caught Stealing?, etc?</li>
+<li>I know nothing about baseball, can we tell the Number of Games Played?</li>
+</ul>
+</div>
+<div id="value-distribution" class="section level2">
+<h2>Value Distribution:</h2>
+<ul>
+<li>A lot of variables have a long tail. In particular, TEAM_PITCHING_H, TEAM_BATTING_SO, TEAM_PITCHING_BB have a VERY long tail, any ideas about trimming this values? (capping/ transformation)?</li>
+</ul>
+</div>
+<div id="correlations" class="section level2">
+<h2>Correlations</h2>
+<p>The collosal scatterplot <a href="https://github.com/rmalarc/DATA621/blob/master/hw01/Rplot01.png" class="uri">https://github.com/rmalarc/DATA621/blob/master/hw01/Rplot01.png</a> shows some correlations, particularly TEAM_BATTING_H + TEAM_BATTING_2B, TEAM_BATTING_3B ~ target. Any ideas?</p>
+<hr />
+</div>
 <div id="data-exploration-25-points" class="section level2">
 <h2>1. DATA EXPLORATION (25 Points)</h2>
 <p>Describe the size and the variables in the moneyball training data set. Consider that too much detail will cause a manager to lose interest while too little detail will make the manager consider that you aren’t doing your job. Some suggestions are given below. Please do NOT treat this as a check list of things to do to complete the assignment. You should have your own thoughts on what to tell the boss. These are just ideas.</p>
@@ -137,9 +159,107 @@ $(document).ready(function () {
 <pre><code>## Loading required package: psych</code></pre>
 <pre class="r"><code># Let's load the data
 
-training &lt;- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/moneyball-training-data.csv'))
+training &lt;- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw01/moneyball-training-data.csv'))
+metadata &lt;- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw01/moneyball-metadata.csv'))
 
-columns &lt;- colnames(training)
+kable(metadata)</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">Variable</th>
+<th align="left">Definiton</th>
+<th align="left">Theoretical.Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">INDEX</td>
+<td align="left">Identification Variable (do not use)</td>
+<td align="left">None</td>
+</tr>
+<tr class="even">
+<td align="left">TARGET_WINS</td>
+<td align="left">Number of wins</td>
+<td align="left"></td>
+</tr>
+<tr class="odd">
+<td align="left">TEAM_BATTING_H</td>
+<td align="left">Base Hits by batters (1B,2B,3B,HR)</td>
+<td align="left">Positive Impact on Wins</td>
+</tr>
+<tr class="even">
+<td align="left">TEAM_BATTING_2B</td>
+<td align="left">Doubles by batters (2B)</td>
+<td align="left">Positive Impact on Wins</td>
+</tr>
+<tr class="odd">
+<td align="left">TEAM_BATTING_3B</td>
+<td align="left">Triples by batters (3B)</td>
+<td align="left">Positive Impact on Wins</td>
+</tr>
+<tr class="even">
+<td align="left">TEAM_BATTING_HR</td>
+<td align="left">Homeruns by batters (4B)</td>
+<td align="left">Positive Impact on Wins</td>
+</tr>
+<tr class="odd">
+<td align="left">TEAM_BATTING_BB</td>
+<td align="left">Walks by batters</td>
+<td align="left">Positive Impact on Wins</td>
+</tr>
+<tr class="even">
+<td align="left">TEAM_BATTING_HBP</td>
+<td align="left">Batters hit by pitch (get a free base)</td>
+<td align="left">Positive Impact on Wins</td>
+</tr>
+<tr class="odd">
+<td align="left">TEAM_BATTING_SO</td>
+<td align="left">Strikeouts by batters</td>
+<td align="left">Negative Impact on Wins</td>
+</tr>
+<tr class="even">
+<td align="left">TEAM_BASERUN_SB</td>
+<td align="left">Stolen bases</td>
+<td align="left">Positive Impact on Wins</td>
+</tr>
+<tr class="odd">
+<td align="left">TEAM_BASERUN_CS</td>
+<td align="left">Caught stealing</td>
+<td align="left">Negative Impact on Wins</td>
+</tr>
+<tr class="even">
+<td align="left">TEAM_FIELDING_E</td>
+<td align="left">Errors Negative</td>
+<td align="left">Impact on Wins</td>
+</tr>
+<tr class="odd">
+<td align="left">TEAM_FIELDING_DP</td>
+<td align="left">Double Plays</td>
+<td align="left">Positive Impact on Wins</td>
+</tr>
+<tr class="even">
+<td align="left">TEAM_PITCHING_BB</td>
+<td align="left">Walks allowed</td>
+<td align="left">Negative Impact on Wins</td>
+</tr>
+<tr class="odd">
+<td align="left">TEAM_PITCHING_H</td>
+<td align="left">Hits allowed</td>
+<td align="left">Negative Impact on Wins</td>
+</tr>
+<tr class="even">
+<td align="left">TEAM_PITCHING_HR</td>
+<td align="left">Homeruns allowed Negative</td>
+<td align="left">Impact on Wins</td>
+</tr>
+<tr class="odd">
+<td align="left">TEAM_PITCHING_SO</td>
+<td align="left">Strikeouts by pitchers</td>
+<td align="left">Positive Impact On Wins</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code>columns &lt;- colnames(training)
 target &lt;- &quot;TARGET_WINS&quot;
 inputs &lt;- columns[!columns %in% c(target,&quot;INDEX&quot;)]
 
@@ -729,6 +849,7 @@ summary(lm(TARGET_WINS~.,data=training[,c(target,inputs)]))</code></pre>
 <li>residual plots.</li>
 </ol>
 <p>Make predictions using the evaluation data set.</p>
+</div>
 </div>
 
 
