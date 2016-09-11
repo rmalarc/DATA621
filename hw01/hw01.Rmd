@@ -69,7 +69,7 @@ require("reshape2")
 require("ggplot2")
 # Let's melt the DF so that we can plot it more easily
 
-ggplot(melt(training, measure.vars = inputs)
+ggplot(melt(training, measure.vars = c(target,inputs))
        ,aes(x=variable,y=value)
        )+
     geom_boxplot() +
@@ -85,14 +85,26 @@ require("reshape2")
 require("ggplot2")
 # Let's melt the DF so that we can plot it more easily
 
-ggplot(melt(data.frame(scale(training)), measure.vars = inputs),
+ggplot(melt(data.frame(scale(training)), measure.vars = c(target,inputs)),
        aes(x=variable,y=value)
        )+
     geom_boxplot() +
     coord_flip()
+
 ```
 
 the case for data transformations is a lot more self-evident now!
+
+Let's see what it looks like with a log transformation:
+
+```{r}
+ggplot(melt(data.frame(scale(log(training))), measure.vars = c(target,inputs)),
+       aes(x=variable,y=value)
+       )+
+    geom_boxplot() +
+    coord_flip()
+
+```
 
 c. Is the data correlated to the target variable (or to other variables?)
 
@@ -103,9 +115,35 @@ pairs(~.,data=training[,c(target,inputs)],
 # LEt's see the correlation matrix
 
 kable(cor(training[,c(target,inputs)], use="pairwise.complete.obs", method="kendall") )
+```
+
+Let's try some whatever linear regression
+
+```{r}
 
 # and a refression on the raw data to see what comes out of it
-summary(lm(TARGET_WINS~.,data=training[,c(target,inputs)]))
+complete_cols <- row.names( summary[summary$completeness == 1,])
+complete_cols <- complete_cols[complete_cols!=target]
+
+model <- lm(TARGET_WINS~.,data=training[,c(target,complete_cols)])
+summary(model)
+model
+pr <-data.frame(training$TARGET_WINS,predict(model,training[,complete_cols]))
+View(pr)
+plot(pr,xlim=c(0,120),ylim=c(0,120))
+
+
+# try with PCA
+
+pc = prcomp(training[,complete_cols])
+dim(pc$rotation)
+model <- lm(training[,c(target)]~pc$x[,1]+pc$x[,2]+pc$x[,3]+pc$x[,4]+pc$x[,5]+pc$x[,7]+pc$x[,8])
+
+summary(model)
+model
+pr <-data.frame(training$TARGET_WINS,predict(model,data.frame(pc$x[,c(1,2,3,4,5,7,8)])))
+View(pr)
+plot(pr,xlim=c(0,120),ylim=c(0,120))
 ```
 
 d. Are any of the variables missing and need to be imputed "fixed"?
