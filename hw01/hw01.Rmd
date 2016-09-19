@@ -1,6 +1,6 @@
 ---
 title: "DATA621 - Moneyball"
-author: "Daniel Hong, Mauricio Alarcon"
+author: "Daniel Hong, Mauricio Alarcon, Maxwell Wagner"
 date: "September 11, 2016"
 output: html_document
 ---
@@ -52,7 +52,7 @@ columns <- colnames(training)
 target <- "TARGET_WINS"
 inputs <- columns[!columns %in% c(target,"INDEX")]
 
-summary <- describe(training[,c(target,inputs)])[,c("n","mean","sd","median")]
+summary <- describe(training[,c(target,inputs)])[,c("n","mean","sd","median","max","min")]
 summary$completeness <- summary$n/nrow(training)
 kable(summary)
 
@@ -129,7 +129,7 @@ model <- lm(TARGET_WINS~.,data=training[,c(target,complete_cols)])
 summary(model)
 model
 pr <-data.frame(training$TARGET_WINS,predict(model,training[,complete_cols]))
-View(pr)
+
 plot(pr,xlim=c(0,120),ylim=c(0,120))
 
 
@@ -142,12 +142,14 @@ model <- lm(training[,c(target)]~pc$x[,1]+pc$x[,2]+pc$x[,3]+pc$x[,4]+pc$x[,5]+pc
 summary(model)
 model
 pr <-data.frame(training$TARGET_WINS,predict(model,data.frame(pc$x[,c(1,2,3,4,5,7,8)])))
-View(pr)
+
 plot(pr,xlim=c(0,120),ylim=c(0,120))
+
+
+
 ```
 
 d. Are any of the variables missing and need to be imputed "fixed"?
-
 
 
 ## 2. DATA PREPARATION (25 Points)
@@ -158,6 +160,261 @@ b. Create flags to suggest if a variable was missing
 c. Transform data by putting it into buckets
 d. Mathematical transforms such as log or square root (or use Box-Cox)
 e. Combine variables (such as ratios or adding or multiplying) to create new variables
+
+
+```{r}
+
+# and a refression on the raw data to see what comes out of it
+complete_cols <- row.names( summary[summary$completeness == 1,])
+complete_cols <- c(complete_cols[complete_cols!=target])
+
+training_transformed <- training[,c(target,complete_cols)]
+
+
+# make up for missing TEAM_BATTING_SO
+training[is.na(training$TEAM_BATTING_SO),]$TEAM_BATTING_SO <- median(training$TEAM_BATTING_SO, na.rm = TRUE)
+training_transformed$TEAM_BATTING_SO <- training$TEAM_BATTING_SO
+
+# make up for missing TEAM_BASERUN_SB
+training[is.na(training$TEAM_BASERUN_SB),]$TEAM_BASERUN_SB <- median(training$TEAM_BASERUN_SB, na.rm = TRUE)
+training_transformed$TEAM_BASERUN_SB <- training$TEAM_BASERUN_SB
+
+# make up for missing TEAM_PITCHING_SO
+training[is.na(training$TEAM_PITCHING_SO),]$TEAM_PITCHING_SO <- median(training$TEAM_PITCHING_SO, na.rm = TRUE)
+training_transformed$TEAM_PITCHING_SO <- training$TEAM_PITCHING_SO
+
+# make up for missing TEAM_FIELDING_DP
+training[is.na(training$TEAM_FIELDING_DP),]$TEAM_FIELDING_DP <- median(training$TEAM_FIELDING_DP, na.rm = TRUE)
+training_transformed$TEAM_FIELDING_DP <- training$TEAM_FIELDING_DP
+
+# make up for missing TEAM_BASERUN_CS
+training[is.na(training$TEAM_BASERUN_CS),]$TEAM_BASERUN_CS  <- median(training$TEAM_BASERUN_CS, na.rm = TRUE)
+training_transformed$TEAM_BASERUN_CS <- training$TEAM_BASERUN_CS 
+
+
+#training_transformed$TEAM_BATTING_1B <- (training_transformed$TEAM_BATTING_2B-training_transformed$TEAM_BATTING_3B+training_transformed$TEAM_BATTING_HR)
+
+# validation algo
+#training_transformed$INVALID <- FALSE
+#training_transformed$INVALID <- training_transformed$INVALID | training_transformed$TEAM_BATTING_1B < 811 | training_transformed$TEAM_BATTING_1B>1338
+#length(training_transformed$INVALID[training_transformed$INVALID])
+
+training_transformed$INVALID <- FALSE
+training_transformed$INVALID <- training_transformed$INVALID | training_transformed$TEAM_BATTING_2B < 110 | training_transformed$TEAM_BATTING_2B>376
+length(training_transformed$INVALID[training_transformed$INVALID])
+
+training_transformed$INVALID <- training_transformed$INVALID | training_transformed$TEAM_BATTING_3B < 11 | training_transformed$TEAM_BATTING_3B>153
+length(training_transformed$INVALID[training_transformed$INVALID])
+
+training_transformed$INVALID <- training_transformed$INVALID | training_transformed$TEAM_BATTING_HR < 3 | training_transformed$TEAM_BATTING_HR>264
+length(training_transformed$INVALID[training_transformed$INVALID])
+
+training_transformed$INVALID <- training_transformed$INVALID | training_transformed$TEAM_BATTING_H < 935 | training_transformed$TEAM_BATTING_H>2131
+length(training_transformed$INVALID[training_transformed$INVALID])
+
+training_transformed$INVALID <- training_transformed$INVALID | training_transformed$TEAM_BATTING_SO < 308 | training_transformed$TEAM_BATTING_SO>1535
+length(training_transformed$INVALID[training_transformed$INVALID])
+
+training_transformed$INVALID <- training_transformed$INVALID | training_transformed$TEAM_PITCHING_SO < 308 | training_transformed$TEAM_PITCHING_SO>1535
+length(training_transformed$INVALID[training_transformed$INVALID])
+
+
+training_transformed$INVALID <- training_transformed$INVALID | training_transformed$TEAM_BATTING_BB < 282 | training_transformed$TEAM_BATTING_BB>835
+length(training_transformed$INVALID[training_transformed$INVALID])
+
+training_transformed$INVALID <- training_transformed$INVALID | training_transformed$TEAM_PITCHING_BB < 282 | training_transformed$TEAM_PITCHING_BB>835
+length(training_transformed$INVALID[training_transformed$INVALID])
+
+training_transformed$INVALID <- training_transformed$INVALID | training_transformed$TEAM_BASERUN_CS < 8 | training_transformed$TEAM_BASERUN_CS>191
+length(training_transformed$INVALID[training_transformed$INVALID])
+
+training_transformed$INVALID <- training_transformed$INVALID | training_transformed$TEAM_BASERUN_SB < 13 | training_transformed$TEAM_BASERUN_SB>638
+length(training_transformed$INVALID[training_transformed$INVALID])
+
+#training_transformed <- training_transformed[!training_transformed$INVALID,]
+
+
+#training_transformed$TEAM_BATTING_1B <- training_transformed$TEAM_BATTING_1B/training_transformed$TEAM_BATTING_H
+
+#training_transformed$TEAM_BATTING_2B <- training_transformed$TEAM_BATTING_2B/training_transformed$TEAM_BATTING_H
+#training_transformed$TEAM_BATTING_3B <- training_transformed$TEAM_BATTING_3B/training_transformed$TEAM_BATTING_H
+#training_transformed$TEAM_BATTING_HR <- training_transformed$TEAM_BATTING_HR/training_transformed$TEAM_BATTING_H
+
+
+#training_transformed$TEAM_PITCHING_HR <- training_transformed$TEAM_PITCHING_HR/training_transformed$TEAM_PITCHING_H
+
+
+library(MASS)
+valid_data <- training_transformed[!training_transformed$INVALID&complete.cases(training_transformed),colnames(training_transformed)[!colnames(training_transformed) %in% c("TEAM_PITCHING_H","TEAM_BATTING_H","INVALID")]]
+
+
+getBoxCoxCoef<-function(x,y){
+  if (min(x)<=0){1} else {
+    d<-boxcox(x~y, plotit = FALSE)
+    d <- data.frame(d)
+    max_x <- d[d$y == max(d$y),]$x
+    if (abs(max_x)<=(1/3)) 1 else max_x
+  }
+}
+
+
+
+combinations <- t(combn(colnames(valid_data)[colnames(valid_data)!="TARGET_WINS"],2))
+
+try_Variable <- function(x,y,label){
+  y_power <- getBoxCoxCoef(y+0.00001,x)
+  x_power <- getBoxCoxCoef(x+0.00001,y)
+#  product_power <- 1
+#  y_power <- 1
+  model <- lm(I(y^y_power)~I(x^x_power)+0)
+  s <- summary(model)
+  res <- data.frame(try=paste0(label,"^",x_power),
+                    r2=s$r.squared,
+                    x_power=x_power,
+                    y_power=y_power,
+#             intercept=s$coefficients[,"Estimate"][1],
+#             intercept_p=s$coefficients[,"Pr(>|t|)"][1],
+             coef=s$coefficients[,"Estimate"][1],
+             coef_p=s$coefficients[,"Pr(>|t|)"][1],
+             t_value=s$coefficients[,"t value"][1],
+             min_x=min(x),
+             max_x=max(x),
+             f=s$fstatistic["value"],
+             mse=mean(s$residuals),
+             rse=sd(s$residuals),
+             stringsAsFactors=FALSE
+  )
+  rownames(res) <- NULL
+  res
+}
+
+evaluate_variables <- function(data,combination,target){
+  try_this <- data.frame(x = data[,combination[1]]*data[,combination[2]],y=data[,target])
+  res_1 <- try_Variable(try_this$x,try_this$y,paste0("(",combination[1],"*",combination[2],")"))
+
+  try_this <- data.frame(x = data[,combination[1]]/(data[,combination[2]]+0.0000001),y=data[,target])
+  res_2 <- try_Variable(try_this$x,try_this$y,paste0("(",combination[1],"/",combination[2],")"))
+
+  total<-rbind(res_1,res_2)
+  rownames(total) <- NULL
+  total
+}
+
+evaluate_variable <- function(data,variable,target){
+  try_this <- data.frame(x = data[,variable],y=data[,target])
+  res_1 <- try_Variable(try_this$x,try_this$y,paste0("(",variable,")"))
+
+
+  rownames(res_1) <- NULL
+  res_1
+}
+
+evaluate_variable_log <- function(data,variable,target){
+  try_this <- data.frame(x = log(data[,variable]+0.000001),y=data[,target])
+  res_1 <- try_Variable(try_this$x,try_this$y,paste0("log(",variable,")"))
+
+
+  rownames(res_1) <- NULL
+  res_1
+}
+
+unique_cols <- c(unique(c(combinations[,1],combinations[,2])))
+
+
+the_medium_tamale<-lapply(unique_cols,function(c){evaluate_variable(valid_data,c,"TARGET_WINS")})
+the_medium_tamale<-do.call(rbind,the_medium_tamale)
+
+the_log_tamale<-lapply(unique_cols,function(c){evaluate_variable_log(valid_data,c,"TARGET_WINS")})
+the_log_tamale<-do.call(rbind,the_log_tamale)
+
+the_big_tamale<-apply(combinations,1,function(c){evaluate_variables(valid_data,c,"TARGET_WINS")})
+the_big_tamale<-do.call(rbind,the_big_tamale)
+
+the_tamale <- rbind(the_medium_tamale,the_log_tamale,the_big_tamale)
+
+kable(the_tamale[order(-the_tamale$r2),])
+
+########
+# select columns for model
+
+head(the_tamale[order(-the_tamale$r2),c("try","r2","coef_p")],8)
+
+
+model_data <- data.frame(TEAM_BATTING_3B_OVER_TEAM_FIELDING_E = with(valid_data,TEAM_BATTING_3B/TEAM_FIELDING_E),
+TEAM_BATTING_2B_BY_TEAM_PITCHING_BB = with(valid_data,TEAM_BATTING_2B*TEAM_PITCHING_BB),
+TEAM_BATTING_3B_BY_TEAM_PITCHING_HR = with(valid_data,TEAM_BATTING_3B*TEAM_PITCHING_HR),
+TEAM_BATTING_2B_BY_TEAM_BATTING_BB = with(valid_data,TEAM_BATTING_2B*TEAM_BATTING_BB),
+TEAM_BATTING_3B_BY_TEAM_BATTING_HR = with(valid_data,TEAM_BATTING_3B*TEAM_BATTING_HR),
+TEAM_BATTING_BB_BY_TEAM_PITCHING_BB = with(valid_data,TEAM_BATTING_BB),
+TEAM_PITCHING_HR_OVER_TEAM_BATTING_SO = with(valid_data,TEAM_BATTING_BB*TEAM_PITCHING_BB),
+TEAM_BATTING_BB = with(valid_data,TEAM_PITCHING_HR/TEAM_BATTING_SO),
+  TARGET_WINS=with(valid_data,TARGET_WINS)
+)
+
+d<-boxcox(TARGET_WINS+0.0001~.,data=model_data, plotit = TRUE)
+
+d <- data.frame(d)
+
+y_power <- d[d$y == max(d$y),]$x
+
+source_cols <- colnames(model_data)
+
+source_cols <- source_cols[source_cols!="TARGET_WINS"]
+
+powers <- lapply(source_cols,function(x){getBoxCoxCoef(model_data[,x],model_data$TARGET_WINS^y_power)})
+
+params <- c(unlist(powers),y_power)
+
+power_transforms <- data.frame(t(apply(model_data,1,function(c) { c^params})))
+
+
+#model <- lm(TARGET_WINS~.,data=power_transforms[,colnames(power_transforms)[!colnames(power_transforms) %in% c("TEAM_PITCHING_H","TEAM_BATTING_H")]])
+#summary(model)
+model <- lm(TARGET_WINS~.+0,power_transforms[,colnames(power_transforms)[!colnames(power_transforms) %in% c("TEAM_BATTING_3B_BY_TEAM_PITCHING_HR","TEAM_BATTING_BB_BY_TEAM_PITCHING_BB")]])
+summary(model)
+
+plot(model)
+
+
+
+
+model_data <-data.frame(
+  log_TEAM_BATTING_BB = with(valid_data,log(TEAM_BATTING_BB)),
+log_TEAM_BATTING_2B = with(valid_data,log(TEAM_BATTING_2B)),
+TEAM_BATTING_3B_OVER_TEAM_FIELDING_E = with(valid_data,TEAM_BATTING_3B/TEAM_FIELDING_E),
+TEAM_BATTING_2B_BY_TEAM_PITCHING_BB = with(valid_data,TEAM_BATTING_2B*TEAM_PITCHING_BB),
+TEAM_BATTING_2B = with(valid_data,TEAM_BATTING_2B),
+log_TEAM_PITCHING_BB = with(valid_data,log(TEAM_PITCHING_BB)),
+TEAM_BATTING_BB_BY_TEAM_PITCHING_BB = with(valid_data,TEAM_BATTING_BB*TEAM_PITCHING_BB),
+TEAM_BATTING_2B_BY_TEAM_BATTING_BB = with(valid_data,TEAM_BATTING_2B*TEAM_BATTING_BB),
+  TARGET_WINS=with(valid_data,TARGET_WINS)
+)
+
+d<-boxcox(TARGET_WINS+0.0001~.,data=model_data, plotit = TRUE)
+
+d <- data.frame(d)
+
+y_power <- d[d$y == max(d$y),]$x
+
+source_cols <- colnames(model_data)
+
+source_cols <- source_cols[source_cols!="TARGET_WINS"]
+
+powers <- lapply(source_cols,function(x){getBoxCoxCoef(model_data[,x],model_data$TARGET_WINS^y_power)})
+
+params <- c(unlist(powers),y_power)
+
+power_transforms <- data.frame(t(apply(model_data,1,function(c) { c^params})))
+
+
+#model <- lm(TARGET_WINS~.,data=power_transforms[,colnames(power_transforms)[!colnames(power_transforms) %in% c("TEAM_PITCHING_H","TEAM_BATTING_H")]])
+#summary(model)
+model <- lm(TARGET_WINS~.+0,power_transforms[,colnames(power_transforms)[!colnames(power_transforms) %in% c("TEAM_BATTING_3B_BY_TEAM_PITCHING_HR","TEAM_BATTING_BB_BY_TEAM_PITCHING_BB")]])
+summary(model)
+
+plot(model)
+```
+
 
 ## 3. BUILD MODELS (25 Points)
 
