@@ -217,6 +217,23 @@ library(MASS)
 valid_data <- training_transformed[!training_transformed$INVALID&complete.cases(training_transformed),colnames(training_transformed)[!colnames(training_transformed) %in% c("INVALID")]]
 
 ```
+# Model 0: A Mean based model
+
+Let's try a straight up regression whatever linear regression
+
+```{r}
+
+
+model <- lm(TARGET_WINS~1,data=valid_data)
+summary(model)
+model0 <- model
+model0_y_power <- 1
+plot(model)
+
+
+
+```
+
 
 # Model 1: A Straight Up Model
 
@@ -227,7 +244,11 @@ Let's try a straight up regression whatever linear regression
 
 model <- lm(TARGET_WINS~.+0,data=valid_data)
 summary(model)
+model1 <- model
+model1_y_power <- 1
 plot(model)
+
+
 
 ```
 
@@ -257,7 +278,11 @@ y_power
 model_data$TARGET_WINS <- with(model_data,TARGET_WINS^y_power)
 model <- lm(TARGET_WINS~.+0,data=model_data)
 summary(model)
+model2 <- model
+model2_y_power <- y_power
 plot(model)
+
+
 
 ```
 
@@ -284,8 +309,11 @@ power_transforms <- data.frame(t(apply(model_data,1,function(c) { c^params})))
 #summary(model)
 model <- lm(TARGET_WINS~.+0,power_transforms)
 summary(model)
-
+model3 <- model
+model3_y_power <- y_power
 plot(model)
+
+
 
 ```
 
@@ -316,7 +344,7 @@ try_Variable <- function(x,y,label){
              min_x=min(x),
              max_x=max(x),
              f=s$fstatistic["value"],
-             mse=mean(s$residuals),
+             mse=mean(s$residuals^2),
              rse=sd(s$residuals),
              stringsAsFactors=FALSE
   )
@@ -372,7 +400,7 @@ kable(the_tamale[order(-the_tamale$r2),])
 
 ```
 
-### Models Based on Calculated Measures - Model 3
+### Models Based on Calculated Measures - Model 4
 
 
 
@@ -416,12 +444,15 @@ power_transforms <- data.frame(t(apply(model_data,1,function(c) { c^params})))
 #summary(model)
 model <- lm(TARGET_WINS~.+0,power_transforms[,colnames(power_transforms)[!colnames(power_transforms) %in% c("TEAM_BATTING_3B_BY_TEAM_PITCHING_HR","TEAM_BATTING_BB_BY_TEAM_PITCHING_BB")]])
 summary(model)
-
+model4 <- model
+model4_y_power <- y_power
 plot(model)
+
+
 
 ```
 
-### Models Based on Calculated Measures - Model 4
+### Models Based on Calculated Measures - Model 5
 
 ```{r}
 
@@ -460,7 +491,30 @@ power_transforms <- data.frame(t(apply(model_data,1,function(c) { c^params})))
 model <- lm(TARGET_WINS~.+0,power_transforms[,colnames(power_transforms)[!colnames(power_transforms) %in% c("TEAM_BATTING_3B_BY_TEAM_PITCHING_HR","TEAM_BATTING_BB_BY_TEAM_PITCHING_BB")]])
 summary(model)
 
+model5 <- model
+model5_y_power <- y_power
 plot(model)
+
+
+
+```
+
+
+# Model 6: A Straight Up Model, w/o intercept calcellation
+
+Let's try a straight up regression whatever linear regression
+
+```{r}
+
+
+model <- lm(TARGET_WINS~.,data=valid_data)
+summary(model)
+model6 <- model
+model6_y_power <- 1
+plot(model)
+
+
+
 ```
 
 
@@ -480,4 +534,31 @@ d. residual plots.
 
 Make predictions using the evaluation data set.
 
+```{r}
+models <- list(model0,model1,model2,model3,model4,model5,model6)
 
+model_metrics <- lapply(models,function (m){ 
+  s <- summary(m)
+  res <- data.frame(r2=s$r.squared,
+          rse=s$sigma,
+          mse=mean(s$residuals^2),
+          fstatistic=head(c(s$fstatistic[1],0),1),
+          fstatistic_df1=head(c(s$fstatistic[2],0),1),
+          fstatistic_df2=head(c(s$fstatistic[3],0),1))
+  res
+  })
+
+combined_results <- do.call(rbind,model_metrics)
+rownames(combined_results) <- NULL
+combined_results <- data.frame(
+  model = c("model0","model1","model2","model3","model4","model5","model6"),
+  description = c("Mean-based model","Model with Straight-Up Variables, Zero Intercept","Model with Y Power Transformation Using Boxcox","Model with X&Y  Power Transformation Using Boxcox", "Model with Y & Automatic Feature Set 1 w/Power Transformation Using Boxcox", "Model with Y & Automatic Feature Set 2 w/Power Transformation Using Boxcox", "Model with Straight-Up Variables"),
+  combined_results)
+
+y_powers<- c(model0_y_power,model1_y_power,model2_y_power,model3_y_power,model4_y_power,model5_y_power,model6_y_power)
+combined_results$mse <- combined_results$mse ^ (1/y_powers)
+kable(combined_results)
+
+
+
+```
