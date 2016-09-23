@@ -2,7 +2,7 @@
 title: "DATA621 - Moneyball"
 author: "Daniel Hong, Mauricio Alarcon, Maxwell Wagner"
 date: "September 11, 2016"
-output: html_document
+output: word_document
 ---
 
 ```{r setup, include=FALSE}
