@@ -1,0 +1,78 @@
+---
+title: "DATA 621 Homework #1 - Moneyball"
+author: "Daniel Hong, Mauricio Alarcon, Maxwell Wagner"
+date: "September 11, 2016"
+output: 
+  pdf_document: 
+    toc: true
+---
+
+```{r setup, include=FALSE}
+require("knitr")
+require("plyr")
+require("knitr")
+require("psych")
+require("reshape2")
+require("ggplot2")
+require("gridExtra")
+require("MASS")
+opts_chunk$set(fig.align = "center", warning = FALSE, message = FALSE, comment=NA)
+```
+
+***
+
+# Data Exploration
+
+The Moneyball dataset includes roughly 2200 records dating from 1871 to 2006. Each record includes statistics regarding the performance of the team adjusted for a 162 game season. Table 1 below provides the mean, standard deviation, median, max, min, and completeness of each variable. Looking at the completeness column the most noticable outliers are the `Batters hit by pitch` and `Caught stealing` variables. These will likely be removed in the models due to lack of information.
+
+#### Table 1
+:
+
+```{r, echo=FALSE}
+training <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw01/moneyball-training-data.csv'))
+metadata <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw01/moneyball-metadata.csv'))
+
+columns <- colnames(training)
+target <- "TARGET_WINS"
+inputs <- columns[!columns %in% c(target,"INDEX")]
+
+summary <- describe(training[,c(target,inputs)])[,c("n","mean","sd","median","max","min")]
+summary$completeness <- round(summary$n/nrow(training),2)
+summary$n <- NULL
+kable(summary)
+```
+
+In order to view the distribution of variables, a scaling method was used. The scaling is necessary to correct the values in the `Hit's Allowed` and `Strikeout by Pitchers` variable. It also provides evidence for the later use of transformations to balance the variables.
+
+```{r, echo=FALSE}
+ggplot(melt(data.frame(scale(training)), measure.vars = c(target,inputs)),
+       aes(x=variable,y=value)
+       )+ geom_boxplot() + coord_flip() + ggtitle("Normalized Distribution")
+```
+
+Table 2 below shows the correlation between each variable and the `Target_wins` variable. Predictably, some variables are near zero correlation, which means they likely have little impact on number of wins. The higher variables seem to be related to the player getting on base. The batting variables being a postive impact on wins, and the pitching variables being a negative effect on wins. Other information like batters being hit pitches, double plays, and stolen bases seem to have little significance.
+
+#### Table 2
+:
+
+```{r, echo=FALSE}
+#MAX: how should we display correlation? Just the graph, or some sort of table? Just going to show corr to wins for now
+base_cor <- cor(training[,c(target,inputs)], use="pairwise.complete.obs", method="kendall")
+base_cor <- data.frame(r = base_cor[1,])
+kable(base_cor)
+```
+
+# Data Preparation
+
+
+
+
+# Build Models
+
+
+
+# Select Models
+
+
+
+# Appendix
