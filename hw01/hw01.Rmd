@@ -46,6 +46,7 @@ require("psych")
 
 training <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw01/moneyball-training-data.csv'))
 metadata <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw01/moneyball-metadata.csv'))
+evaluation <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw01/moneyball-evaluation-data.csv'))
 
 kable(metadata)
 columns <- colnames(training)
@@ -246,6 +247,7 @@ model <- lm(TARGET_WINS~.+0,data=valid_data)
 summary(model)
 model1 <- model
 model1_y_power <- 1
+model1_powers <- 1
 plot(model)
 
 
@@ -280,6 +282,8 @@ model <- lm(TARGET_WINS~.+0,data=model_data)
 summary(model)
 model2 <- model
 model2_y_power <- y_power
+model2_powers <- y_power
+
 plot(model)
 
 
@@ -292,7 +296,15 @@ plot(model)
 The residual curves look funky. Let's apply some power transformations to the same model:
 
 ```{r}
-
+model_data <- valid_data[,c("TEAM_BATTING_H"
+,"TEAM_BATTING_3B"
+,"TEAM_BATTING_BB"
+,"TEAM_FIELDING_E"
+,"TEAM_BASERUN_SB"
+,"TEAM_FIELDING_DP","TARGET_WINS")]
+#,"TEAM_BATTING_HR"
+#,"TEAM_PITCHING_HR"
+#,"TEAM_PITCHING_BB"
 
 source_cols <- colnames(model_data)
 
@@ -311,6 +323,7 @@ model <- lm(TARGET_WINS~.+0,power_transforms)
 summary(model)
 model3 <- model
 model3_y_power <- y_power
+model3_powers <- powers
 plot(model)
 
 
@@ -446,53 +459,8 @@ model <- lm(TARGET_WINS~.+0,power_transforms[,colnames(power_transforms)[!colnam
 summary(model)
 model4 <- model
 model4_y_power <- y_power
-plot(model)
+model4_powers <- powers
 
-
-
-```
-
-### Models Based on Calculated Measures - Model 5
-
-```{r}
-
-model_data <-data.frame(
-  log_TEAM_BATTING_BB = with(valid_data,log(TEAM_BATTING_BB)),
-log_TEAM_BATTING_2B = with(valid_data,log(TEAM_BATTING_2B)),
-TEAM_BATTING_3B_OVER_TEAM_FIELDING_E = with(valid_data,TEAM_BATTING_3B/TEAM_FIELDING_E),
-TEAM_BATTING_2B_BY_TEAM_PITCHING_BB = with(valid_data,TEAM_BATTING_2B*TEAM_PITCHING_BB),
-TEAM_BATTING_2B = with(valid_data,TEAM_BATTING_2B),
-log_TEAM_PITCHING_BB = with(valid_data,log(TEAM_PITCHING_BB)),
-TEAM_BATTING_BB_BY_TEAM_PITCHING_BB = with(valid_data,TEAM_BATTING_BB*TEAM_PITCHING_BB),
-TEAM_BATTING_2B_BY_TEAM_BATTING_BB = with(valid_data,TEAM_BATTING_2B*TEAM_BATTING_BB),
-  TARGET_WINS=with(valid_data,TARGET_WINS)
-)
-
-d<-boxcox(TARGET_WINS+0.0001~.,data=model_data, plotit = TRUE)
-
-d <- data.frame(d)
-
-y_power <- d[d$y == max(d$y),]$x
-
-source_cols <- colnames(model_data)
-
-source_cols <- source_cols[source_cols!="TARGET_WINS"]
-
-powers <- lapply(source_cols,function(x){getBoxCoxCoef(model_data[,x],model_data$TARGET_WINS^y_power)})
-
-params <- c(unlist(powers),y_power)
-kable(data.frame(variable=c(source_cols,"TARGET_WINS"),power=params))
-
-power_transforms <- data.frame(t(apply(model_data,1,function(c) { c^params})))
-
-
-#model <- lm(TARGET_WINS~.,data=power_transforms[,colnames(power_transforms)[!colnames(power_transforms) %in% c("TEAM_PITCHING_H","TEAM_BATTING_H")]])
-#summary(model)
-model <- lm(TARGET_WINS~.+0,power_transforms[,colnames(power_transforms)[!colnames(power_transforms) %in% c("TEAM_BATTING_3B_BY_TEAM_PITCHING_HR","TEAM_BATTING_BB_BY_TEAM_PITCHING_BB")]])
-summary(model)
-
-model5 <- model
-model5_y_power <- y_power
 plot(model)
 
 
@@ -500,7 +468,8 @@ plot(model)
 ```
 
 
-# Model 6: A Straight Up Model, w/o intercept calcellation
+
+# Model 5: A Straight Up Model, w/o intercept calcellation
 
 Let's try a straight up regression whatever linear regression
 
@@ -509,13 +478,17 @@ Let's try a straight up regression whatever linear regression
 
 model <- lm(TARGET_WINS~.,data=valid_data)
 summary(model)
-model6 <- model
-model6_y_power <- 1
+model5 <- model
+model5_y_power <- 1
+model5_powers <- powers
+
 plot(model)
 
 
 
 ```
+
+
 
 
 ## 3. BUILD MODELS (25 Points)
@@ -532,33 +505,95 @@ b. R2,
 c. F-statistic, 
 d. residual plots. 
 
-Make predictions using the evaluation data set.
+Make predictions using the training_transformed data set.
 
 ```{r}
-models <- list(model0,model1,model2,model3,model4,model5,model6)
+models <- list(model0,model1,model2,model3,model4,model5)
 
 model_metrics <- lapply(models,function (m){ 
   s <- summary(m)
   res <- data.frame(r2=s$r.squared,
           rse=s$sigma,
-          mse=mean(s$residuals^2),
-          fstatistic=head(c(s$fstatistic[1],0),1),
-          fstatistic_df1=head(c(s$fstatistic[2],0),1),
-          fstatistic_df2=head(c(s$fstatistic[3],0),1))
+          me=sqrt(mean(s$residuals^2)),
+          fstatistic=head(c(s$fstatistic[1],1),1),
+          fstatistic_df1=head(c(s$fstatistic[2],1),1),
+          fstatistic_df2=head(c(s$fstatistic[3],nrow(valid_data)),1)
+          )
   res
   })
 
 combined_results <- do.call(rbind,model_metrics)
 rownames(combined_results) <- NULL
 combined_results <- data.frame(
-  model = c("model0","model1","model2","model3","model4","model5","model6"),
-  description = c("Mean-based model","Model with Straight-Up Variables, Zero Intercept","Model with Y Power Transformation Using Boxcox","Model with X&Y  Power Transformation Using Boxcox", "Model with Y & Automatic Feature Set 1 w/Power Transformation Using Boxcox", "Model with Y & Automatic Feature Set 2 w/Power Transformation Using Boxcox", "Model with Straight-Up Variables"),
+  model = c("model0","model1","model2","model3","model4","model5"),
+  description = c("Mean-based model","Model with Straight-Up Variables, Zero Intercept","Model with Y Power Transformation Using Boxcox","Model with X&Y  Power Transformation Using Boxcox", "Model with Y & Automatic Feature Set 1 w/Power Transformation Using Boxcox", "Model with Straight-Up Variables"),
   combined_results)
 
-y_powers<- c(model0_y_power,model1_y_power,model2_y_power,model3_y_power,model4_y_power,model5_y_power,model6_y_power)
-combined_results$mse <- combined_results$mse ^ (1/y_powers)
+y_powers<- c(model0_y_power,model1_y_power,model2_y_power,model3_y_power,model4_y_power,model5_y_power)
+combined_results$me <- combined_results$me ^ (1/y_powers)
 kable(combined_results)
 
+
+```
+
+
+
+# Predictions
+
+```{r}
+# make up for missing values in the evaluation dataset by imputing wiht the training medians
+
+# make up for missing TEAM_BATTING_SO
+evaluation[is.na(evaluation$TEAM_BATTING_SO),]$TEAM_BATTING_SO <- median(training$TEAM_BATTING_SO, na.rm = TRUE)
+
+# make up for missing TEAM_BASERUN_SB
+evaluation[is.na(evaluation$TEAM_BASERUN_SB),]$TEAM_BASERUN_SB <- median(training$TEAM_BASERUN_SB, na.rm = TRUE)
+
+# make up for missing TEAM_PITCHING_SO
+evaluation[is.na(evaluation$TEAM_PITCHING_SO),]$TEAM_PITCHING_SO <- median(training$TEAM_PITCHING_SO, na.rm = TRUE)
+
+# make up for missing TEAM_FIELDING_DP
+evaluation[is.na(evaluation$TEAM_FIELDING_DP),]$TEAM_FIELDING_DP <- median(training$TEAM_FIELDING_DP, na.rm = TRUE)
+
+
+# apply validation rules
+
+evaluation$INVALID <- FALSE
+evaluation$INVALID <- evaluation$INVALID | evaluation$TEAM_BATTING_2B < 110 | evaluation$TEAM_BATTING_2B>376
+length(evaluation$INVALID[evaluation$INVALID])
+
+evaluation$INVALID <- evaluation$INVALID | evaluation$TEAM_BATTING_3B < 11 | evaluation$TEAM_BATTING_3B>153
+length(evaluation$INVALID[evaluation$INVALID])
+
+evaluation$INVALID <- evaluation$INVALID | evaluation$TEAM_BATTING_HR < 3 | evaluation$TEAM_BATTING_HR>264
+length(evaluation$INVALID[evaluation$INVALID])
+
+evaluation$INVALID <- evaluation$INVALID | evaluation$TEAM_BATTING_H < 935 | evaluation$TEAM_BATTING_H>2131
+length(evaluation$INVALID[evaluation$INVALID])
+
+evaluation$INVALID <- evaluation$INVALID | evaluation$TEAM_BATTING_SO < 308 | evaluation$TEAM_BATTING_SO>1535
+length(evaluation$INVALID[evaluation$INVALID])
+
+evaluation$INVALID <- evaluation$INVALID | evaluation$TEAM_PITCHING_SO < 308 | evaluation$TEAM_PITCHING_SO>1535
+length(evaluation$INVALID[evaluation$INVALID])
+
+
+evaluation$INVALID <- evaluation$INVALID | evaluation$TEAM_BATTING_BB < 282 | evaluation$TEAM_BATTING_BB>835
+length(evaluation$INVALID[evaluation$INVALID])
+
+evaluation$INVALID <- evaluation$INVALID | evaluation$TEAM_PITCHING_BB < 282 | evaluation$TEAM_PITCHING_BB>835
+length(evaluation$INVALID[evaluation$INVALID])
+
+
+
+model1_predictions <- predict(model1,evaluation)^(1/model1_y_power)
+model1_predictions[evaluation$INVALID] <- NA
+
+model2_predictions <- predict(model2,evaluation)^(1/model2_y_power)
+model2_predictions[evaluation$INVALID] <- NA
+
+
+kable(data.frame(model1_predictions = model1_predictions))
 
 
 ```
