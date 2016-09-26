@@ -421,17 +421,14 @@ kable(the_tamale[order(-the_tamale$r2),])
 ########
 # select columns for model
 
-head(the_tamale[order(-the_tamale$r2),c("try","r2","coef_p")],8)
+head(the_tamale[order(-the_tamale$r2),c("try","r2","coef_p")],5)
 
 
-model_data <- data.frame(TEAM_BATTING_3B_OVER_TEAM_FIELDING_E = with(valid_data,TEAM_BATTING_3B/TEAM_FIELDING_E),
-TEAM_BATTING_2B_BY_TEAM_PITCHING_BB = with(valid_data,TEAM_BATTING_2B*TEAM_PITCHING_BB),
-TEAM_BATTING_3B_BY_TEAM_PITCHING_HR = with(valid_data,TEAM_BATTING_3B*TEAM_PITCHING_HR),
-TEAM_BATTING_2B_BY_TEAM_BATTING_BB = with(valid_data,TEAM_BATTING_2B*TEAM_BATTING_BB),
-TEAM_BATTING_3B_BY_TEAM_BATTING_HR = with(valid_data,TEAM_BATTING_3B*TEAM_BATTING_HR),
-TEAM_BATTING_BB_BY_TEAM_PITCHING_BB = with(valid_data,TEAM_BATTING_BB),
-TEAM_PITCHING_HR_OVER_TEAM_BATTING_SO = with(valid_data,TEAM_BATTING_BB*TEAM_PITCHING_BB),
-TEAM_BATTING_BB = with(valid_data,TEAM_PITCHING_HR/TEAM_BATTING_SO),
+model_data <- data.frame(LOG_TEAM_PITCHING_BB = with(valid_data,log(TEAM_PITCHING_BB)),
+LOG_TEAM_BATTING_BB = with(valid_data,log(TEAM_BATTING_BB)),
+TEAM_BATTING_H_BY_TEAM_BATTING_BB = with(valid_data,(TEAM_BATTING_H*TEAM_BATTING_BB)),
+TEAM_BATTING_H_BY_TEAM_BATTING_2B = with(valid_data,(TEAM_BATTING_H*TEAM_BATTING_2B)),
+TEAM_BATTING_2B_BY_TEAM_PITCHING_BB = with(valid_data,(TEAM_BATTING_2B*TEAM_PITCHING_BB)),
   TARGET_WINS=with(valid_data,TARGET_WINS)
 )
 
@@ -493,8 +490,14 @@ plot(model)
 
 ## 3. BUILD MODELS (25 Points)
 
+We built/evaluated the following models:
+
+
 Using the training data set, build at least three different multiple linear regression models, using different variables (or the same variables with different transformations). Since we have not yet covered automated variable selection methods, you should select the variables manually (unless you previously learned Forward or Stepwise selection, etc.). Since you manually selected a variable for inclusion into the model or exclusion into the model, indicate why this was done.
+
 Discuss the coefficients in the models, do they make sense? For example, if a team hits a lot of Home Runs, it would be reasonably expected that such a team would win more games. However, if the coefficient is negative (suggesting that the team would lose more games), then that needs to be discussed. Are you keeping the model even though it is counter intuitive? Why? The boss needs to know.
+
+
 
 ## 4. SELECT MODELS (25 Points)
 Decide on the criteria for selecting the best multiple linear regression model. Will you select a model with slightly worse performance if it makes more sense or is more parsimonious? Discuss why you selected your model.
@@ -525,13 +528,16 @@ model_metrics <- lapply(models,function (m){
 combined_results <- do.call(rbind,model_metrics)
 rownames(combined_results) <- NULL
 combined_results <- data.frame(
-  model = c("model0","model1","model2","model3","model4","model5"),
+  model = c("model1","model3","model3-1","model3-2","model4","model2"),
   description = c("Mean-based model","Model with Straight-Up Variables, Zero Intercept","Model with Y Power Transformation Using Boxcox","Model with X&Y  Power Transformation Using Boxcox", "Model with Y & Automatic Feature Set 1 w/Power Transformation Using Boxcox", "Model with Straight-Up Variables"),
   combined_results)
 
 y_powers<- c(model0_y_power,model1_y_power,model2_y_power,model3_y_power,model4_y_power,model5_y_power)
 combined_results$me <- combined_results$me ^ (1/y_powers)
 kable(combined_results)
+
+combined_results <-combined_results[order(combined_results$model),]
+kable(combined_results[combined_results$model %in% c("model1","model2","model3","model4"),])
 
 
 ```
