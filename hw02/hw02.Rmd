@@ -1,0 +1,164 @@
+---
+title: "DATA621 - Predictive Modeling Metrics"
+author: "Daniel Hong, Mauricio Alarcon, Maxwell Wagner"
+date: "October 3, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+* * *
+
+
+```{r}
+require("plyr")
+require("knitr")
+require("psych")
+# Let's load the data
+
+# 1. Download the classification output data set (attached in Blackboard to the assignment).
+d <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw02/classification-output-data.csv'))
+
+kable(head(d))
+
+```
+
+
+2. The data set has three key columns we will use:
+* class: the actual class for the observation
+*  scored.class: the predicted class for the observation (based on a threshold of 0.5)
+*  scored.probability: the predicted probability of success for the observation
+
+Use the table() function to get the raw confusion matrix for this scored dataset. Make sure you understand the output. In particular, do the rows represent the actual or predicted class? The columns?
+
+```{r}
+table(d$class,d$scored.class)
+```
+
+3. Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the accuracy of the predictions.
+
+accuracy = tp + tn / tp + fp + tn + fn
+
+```{r}
+# let's use this helper function that will return all the rates for future calculations
+df_flags <- function(d){
+  data.frame(tp=nrow(d[d$class==1 & d$scored.class==1,]),
+             tn=nrow(d[d$class==0 & d$scored.class==0,]),
+             fp=nrow(d[d$class==0 & d$scored.class==1,]),
+             fn=nrow(d[d$class==1 & d$scored.class==0,])
+  )
+}
+
+accuracy<-function(d){
+  f <- df_flags(d)
+  (f$tp+f$tn)/(f$tp+f$fp+f$tn+f$fn)
+}
+
+accuracy(d)
+
+```
+
+4. Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the classification error rate of the predictions.
+
+classification error rate = FP+FN / TP + FP + TN + FN
+
+Verify that you get an accuracy and an error rate that sums to one.
+
+
+```{r}
+classification_error_rate<-function(d){
+  f <- df_flags(d)
+  (f$fp+f$fn)/(f$tp+f$fp+f$tn+f$fn)
+}
+
+classification_error_rate(d)
+
+```
+
+and 
+
+```{r}
+classification_error_rate(d) + accuracy(d)
+
+```
+
+it adds to 1!
+
+5. Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the precision of the predictions.
+
+Precision = TP / TP + FP
+
+```{r}
+precision<-function(d){
+  f <- df_flags(d)
+  (f$tp)/(f$tp+f$fp)
+}
+
+precision(d)
+```
+
+6. Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the sensitivity of the predictions. Sensitivity is also known as recall.
+
+Sensitivity = TP / TP + FN
+
+```{r}
+sensitivity<-function(d){
+  f <- df_flags(d)
+  (f$tp)/(f$tp+f$fn)
+}
+
+sensitivity(d)
+```
+
+
+7. Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the specificity of the predictions.
+
+Specificity = TN / TN + FP
+
+```{r}
+specificity<-function(d){
+  f <- df_flags(d)
+  (f$tn)/(f$tn+f$fp)
+}
+
+specificity(d)
+```
+
+8. Write a function that takes the data set as a dataframe, with actual and predicted classifications identified, and returns the F1 score of the predictions.
+
+f1 Score = 2 precission x sensitivity / precission + sensitivity
+
+```{r}
+
+f1_score<-function(d){
+  p<- precision(d)
+  s<- sensitivity(d)
+  2*p*s/(p+s)
+}
+
+f1_score(d)
+```
+
+9. Before we move on, let's consider a question that was asked: What are the bounds on the F1 score? Show that the F1 score will always be between 0 and 1.
+
+```{r}
+n<-10000
+p <- runif(n)
+s <- runif(n)
+f1 <- 2*p*s/(p+s)
+
+hist(f1)
+summary(f1)
+```
+
+10. Write a function that generates an ROC curve from a data set with a true classification column (class in our example) and a probability column (scored.probability in our example). Your function should return a list that includes the plot of the ROC curve and a vector that contains the calculated area under the curve (AUC). Note that I recommend using a sequence of thresholds ranging from 0 to 1 at 0.01 intervals.
+
+11. Use your created R functions and the provided classification output data set to produce all of the classification metrics discussed above.
+
+12. Investigate the caret package. In particular, consider the functions confusionMatrix, sensitivity, and specificity. Apply the functions to the data set. How do the results compare with your own functions?
+
+13. Investigate the pROC package. Use it to generate an ROC curve for the data set. How do the results compare with your own functions?
+
+
