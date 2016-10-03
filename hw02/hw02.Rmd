@@ -45,9 +45,11 @@ table(d$class,d$scored.class)
 
 **accuracy = tp + tn / tp + fp + tn + fn**
 
+First, let's define a helper function to calculate the confusion matrix values:
+
 ```{r}
 # let's use this helper function that will return all the rates for future calculations
-df_flags <- function(d){
+confusion_matrix <- function(d){
   data.frame(tp=nrow(d[d$class==1 & d$scored.class==1,]),
              tn=nrow(d[d$class==0 & d$scored.class==0,]),
              fp=nrow(d[d$class==0 & d$scored.class==1,]),
@@ -55,8 +57,14 @@ df_flags <- function(d){
   )
 }
 
+kable(confusion_matrix(d))
+```
+
+
+
+```{r}
 accuracy<-function(d){
-  f <- df_flags(d)
+  f <- confusion_matrix(d)
   (f$tp+f$tn)/(f$tp+f$fp+f$tn+f$fn)
 }
 
@@ -75,7 +83,7 @@ accuracy(d)
 
 ```{r}
 classification_error_rate<-function(d){
-  f <- df_flags(d)
+  f <- confusion_matrix(d)
   (f$fp+f$fn)/(f$tp+f$fp+f$tn+f$fn)
 }
 
@@ -100,7 +108,7 @@ it adds to 1!
 
 ```{r}
 precision<-function(d){
-  f <- df_flags(d)
+  f <- confusion_matrix(d)
   (f$tp)/(f$tp+f$fp)
 }
 
@@ -116,7 +124,7 @@ precision(d)
 
 ```{r}
 sensitivity<-function(d){
-  f <- df_flags(d)
+  f <- confusion_matrix(d)
   (f$tp)/(f$tp+f$fn)
 }
 
@@ -132,7 +140,7 @@ sensitivity(d)
 
 ```{r}
 specificity<-function(d){
-  f <- df_flags(d)
+  f <- confusion_matrix(d)
   (f$tn)/(f$tn+f$fp)
 }
 
