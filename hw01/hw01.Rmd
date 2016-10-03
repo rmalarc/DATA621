@@ -251,7 +251,6 @@ model1_powers <- 1
 plot(model)
 
 
-
 ```
 
 # Model 2: A Power Model on Just Y
@@ -326,6 +325,8 @@ model3_y_power <- y_power
 model3_powers <- powers
 plot(model)
 
+lapply(colnames(power_transforms),function(c) {list(c,cor(model$residuals,power_transforms[,c]))})
+plot(model$residuals,power_transforms$TEAM_BATTING_3B)
 
 
 ```
