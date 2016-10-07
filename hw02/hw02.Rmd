@@ -33,7 +33,7 @@ kable(head(d))
 **Use the table() function to get the raw confusion matrix for this scored dataset. Make sure you understand the output. In particular, do the rows represent the actual or predicted class? The columns?**
 
 ```{r}
-table(d$class,d$scored.class)
+kable(table(d$class,d$scored.class))
 ```
 
 In the case above, the rows represent actual values, and columns represent predicted values. For example, in the first row, it indicates that `(119 + 5) = 24` 0's were present in the actual values. For the predicted value in column one, `(119 + 30) = 149` 0's were present. The same principal applies to the second row and column.
