@@ -17,6 +17,9 @@ knitr::opts_chunk$set(echo = TRUE)
 require("plyr")
 require("knitr")
 require("psych")
+require("knitr")
+require("ggplot2")
+require("pracma")
 
 d <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw02/classification-output-data.csv'))
 kable(head(d))
@@ -174,7 +177,14 @@ summary(f1)
 **10 Write a function that generates an ROC curve from a data set with a true classification column (class in our example) and a probability column (scored.probability in our example). Your function should return a list that includes the plot of the ROC curve and a vector that contains the calculated area under the curve (AUC). Note that I recommend using a sequence of thresholds ranging from 0 to 1 at 0.01 intervals.**
 
 ```{r}
-
+roc_c <- function(trues, probs) {
+  trues <- trues[order(probs, decreasing = TRUE)] # sort by the order of the probabilities
+  tp <- cumsum(trues) / sum(trues) # get true positives
+  fp <- cumsum(!trues) / sum(!trues) # get false positives
+  roc_graph <- qplot(fp, tp) + ggtitle("ROC Curve") + geom_abline(slope = 1) 
+  auc <- trapz(fp, tp)
+  list(roc_graph = roc_graph, auc = auc)
+}
 ```
 
 * * * 
@@ -182,7 +192,9 @@ summary(f1)
 **11 Use your created R functions and the provided classification output data set to produce all of the classification metrics discussed above.**
 
 ```{r}
-
+rc <- roc_c(d$class, d$scored.probability)
+rc$roc_graph
+rc$auc
 ```
 
 * * * 
@@ -205,12 +217,9 @@ The first function shows it all, probably don't need the others.
 
 ```{r,message=FALSE}
 require("pROC")
-d_roc <- roc(d$class,d$scored.class)
-plot(d_roc)
+d_roc <- roc(d$class,d$scored.probability)
+plot(d_roc, main = "ROC with pROC")
 ci(d_roc)
-
-# can use the following to compare this roc with our own from part 10.
-# roc.test(d_roc, personal)
 ```
 
 Let's plot this prettier somehow.
