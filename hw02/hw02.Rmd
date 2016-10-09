@@ -221,5 +221,3 @@ d_roc <- roc(d$class,d$scored.probability)
 plot(d_roc, main = "ROC with pROC")
 ci(d_roc)
 ```
-
-Let's plot this prettier somehow.
