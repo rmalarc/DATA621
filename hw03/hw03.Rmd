@@ -9,26 +9,6 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-* * *
-
-# NOTES 
-
-## Missing Data:
-
-* TEAM_BATTING_SO, TEAM_BASERUN_SB, TEAM_PITCHING_SO and TEAM_FIELDING_DP are 90% or so complete, can we fill missing values with mean/median
-* TEAM_BASERUN_CS, TEAM_BATTING_HBP are on the very incomplete side (66%, 8% respectively). Perhaps we can conver to Percent of Games Caught Stealing?, etc?
-* I know nothing about baseball, can we tell the Number of Games Played? 
-
-## Value Distribution:
-
-* A lot of variables have a long tail. In particular, TEAM_PITCHING_H, TEAM_BATTING_SO, TEAM_PITCHING_BB have a VERY long tail, any ideas about trimming this values? (capping/ transformation)?
-
-## Correlations
-
-The collosal scatterplot https://github.com/rmalarc/DATA621/blob/master/hw01/Rplot01.png shows some correlations, particularly TEAM_BATTING_H + TEAM_BATTING_2B, TEAM_BATTING_3B ~ target. Any ideas?
-
-
-
 
 * * * 
 

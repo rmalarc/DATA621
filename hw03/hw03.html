@@ -124,27 +124,6 @@ $(document).ready(function () {
 
 
 <hr />
-<div id="notes" class="section level1">
-<h1>NOTES</h1>
-<div id="missing-data" class="section level2">
-<h2>Missing Data:</h2>
-<ul>
-<li>TEAM_BATTING_SO, TEAM_BASERUN_SB, TEAM_PITCHING_SO and TEAM_FIELDING_DP are 90% or so complete, can we fill missing values with mean/median</li>
-<li>TEAM_BASERUN_CS, TEAM_BATTING_HBP are on the very incomplete side (66%, 8% respectively). Perhaps we can conver to Percent of Games Caught Stealing?, etc?</li>
-<li>I know nothing about baseball, can we tell the Number of Games Played?</li>
-</ul>
-</div>
-<div id="value-distribution" class="section level2">
-<h2>Value Distribution:</h2>
-<ul>
-<li>A lot of variables have a long tail. In particular, TEAM_PITCHING_H, TEAM_BATTING_SO, TEAM_PITCHING_BB have a VERY long tail, any ideas about trimming this values? (capping/ transformation)?</li>
-</ul>
-</div>
-<div id="correlations" class="section level2">
-<h2>Correlations</h2>
-<p>The collosal scatterplot <a href="https://github.com/rmalarc/DATA621/blob/master/hw01/Rplot01.png" class="uri">https://github.com/rmalarc/DATA621/blob/master/hw01/Rplot01.png</a> shows some correlations, particularly TEAM_BATTING_H + TEAM_BATTING_2B, TEAM_BATTING_3B ~ target. Any ideas?</p>
-<hr />
-</div>
 <div id="data-exploration-25-points" class="section level2">
 <h2>1. DATA EXPLORATION (25 Points)</h2>
 <p>Describe the size and the variables in the moneyball training data set. Consider that too much detail will cause a manager to lose interest while too little detail will make the manager consider that you aren’t doing your job. Some suggestions are given below. Please do NOT treat this as a check list of things to do to complete the assignment. You should have your own thoughts on what to tell the boss. These are just ideas.</p>
@@ -806,7 +785,6 @@ plot(d_roc, main = &quot;ROC with pROC&quot;)</code></pre>
 <h2>4. SELECT MODELS (25 Points)</h2>
 <p>Decide on the criteria for selecting the best binary logistic regression model. Will you select models with slightly worse performance if it makes more sense or is more parsimonious? Discuss why you selected your models.</p>
 <p>For the binary logistic regression model, will you use a metric such as log likelihood, AIC, ROC curve, etc.? Using the training data set, evaluate the binary logistic regression model based on (a) accuracy, (b) classification error rate, (c) precision, (d) sensitivity, (e) specificity, (f) F1 score, (g) AUC, and (h) confusion matrix. Make predictions using the evaluation data set.</p>
-</div>
 </div>
 
 
