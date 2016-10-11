@@ -44,9 +44,9 @@ require("knitr")
 require("psych")
 # Let's load the data
 
-training <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw01/moneyball-training-data.csv'))
-metadata <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw01/moneyball-metadata.csv'))
-evaluation <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw01/moneyball-evaluation-data.csv'))
+training <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw03/crime-training-data.csv'))
+metadata <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw01/crime-metadata.csv'))
+evaluation <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw01/crime-evaluation-data.csv'))
 
 kable(metadata)
 columns <- colnames(training)
