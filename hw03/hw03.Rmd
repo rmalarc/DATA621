@@ -1,8 +1,8 @@
 ---
-title: "DATA621 - Moneyball"
+title: "DATA621 - Crime"
 author: "Daniel Hong, Mauricio Alarcon, Maxwell Wagner"
-date: "September 11, 2016"
-output: word_document
+date: "October 10, 2016"
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
@@ -45,15 +45,15 @@ require("psych")
 # Let's load the data
 
 training <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw03/crime-training-data.csv'))
-metadata <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw01/crime-metadata.csv'))
-evaluation <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw01/crime-evaluation-data.csv'))
+metadata <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw03/crime-metadata.csv'))
+evaluation <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw03/crime-evaluation-data.csv'))
 
 kable(metadata)
 columns <- colnames(training)
-target <- "TARGET_WINS"
+target <- "target"
 inputs <- columns[!columns %in% c(target,"INDEX")]
 
-summary <- describe(training[,c(target,inputs)])[,c("n","mean","sd","median","max","min")]
+summary <- describe(training[,c(target,inputs)])[,c("n","mean","sd","median","min","max")]
 summary$completeness <- summary$n/nrow(training)
 kable(summary)
 
@@ -70,10 +70,10 @@ require("reshape2")
 require("ggplot2")
 # Let's melt the DF so that we can plot it more easily
 
-ggplot(melt(training, measure.vars = c(target,inputs))
+ggplot(melt(training, measure.vars = inputs)
        ,aes(x=variable,y=value)
        )+
-    geom_boxplot() +
+    geom_boxplot(aes(fill = factor(target))) +
     coord_flip()
 ```
 
@@ -86,26 +86,14 @@ require("reshape2")
 require("ggplot2")
 # Let's melt the DF so that we can plot it more easily
 
-ggplot(melt(data.frame(scale(training)), measure.vars = c(target,inputs)),
+ggplot(melt(data.frame(scale(training)), measure.vars = inputs),
        aes(x=variable,y=value)
        )+
-    geom_boxplot() +
+    geom_boxplot(aes(fill = factor(target))) +
     coord_flip()
 
 ```
 
-the case for data transformations is a lot more self-evident now!
-
-Let's see what it looks like with a log transformation:
-
-```{r}
-ggplot(melt(data.frame(scale(log(training))), measure.vars = c(target,inputs)),
-       aes(x=variable,y=value)
-       )+
-    geom_boxplot() +
-    coord_flip()
-
-```
 
 c. Is the data correlated to the target variable (or to other variables?)
 
@@ -133,498 +121,41 @@ e. Combine variables (such as ratios or adding or multiplying) to create new var
 
 
 ```{r}
+valid_data <- training
 
-# and a refression on the raw data to see what comes out of it
-complete_cols <- row.names( summary[summary$completeness == 1,])
-complete_cols <- c(complete_cols[complete_cols!=target])
+model <- glm(I(target)~.,data=valid_data,family = binomial)
 
-training_transformed <- training[,c(target,complete_cols)]
-
-
-# make up for missing TEAM_BATTING_SO
-training[is.na(training$TEAM_BATTING_SO),]$TEAM_BATTING_SO <- median(training$TEAM_BATTING_SO, na.rm = TRUE)
-training_transformed$TEAM_BATTING_SO <- training$TEAM_BATTING_SO
-
-# make up for missing TEAM_BASERUN_SB
-training[is.na(training$TEAM_BASERUN_SB),]$TEAM_BASERUN_SB <- median(training$TEAM_BASERUN_SB, na.rm = TRUE)
-training_transformed$TEAM_BASERUN_SB <- training$TEAM_BASERUN_SB
-
-# make up for missing TEAM_PITCHING_SO
-training[is.na(training$TEAM_PITCHING_SO),]$TEAM_PITCHING_SO <- median(training$TEAM_PITCHING_SO, na.rm = TRUE)
-training_transformed$TEAM_PITCHING_SO <- training$TEAM_PITCHING_SO
-
-# make up for missing TEAM_FIELDING_DP
-training[is.na(training$TEAM_FIELDING_DP),]$TEAM_FIELDING_DP <- median(training$TEAM_FIELDING_DP, na.rm = TRUE)
-training_transformed$TEAM_FIELDING_DP <- training$TEAM_FIELDING_DP
-
-# make up for missing TEAM_BASERUN_CS
-#training[is.na(training$TEAM_BASERUN_CS),]$TEAM_BASERUN_CS  <- median(training$TEAM_BASERUN_CS, na.rm = TRUE)
-#training_transformed$TEAM_BASERUN_CS <- training$TEAM_BASERUN_CS 
-
-
-#training_transformed$TEAM_BATTING_1B <- (training_transformed$TEAM_BATTING_2B-training_transformed$TEAM_BATTING_3B+training_transformed$TEAM_BATTING_HR)
-
-# validation algo
-#training_transformed$INVALID <- FALSE
-#training_transformed$INVALID <- training_transformed$INVALID | training_transformed$TEAM_BATTING_1B < 811 | training_transformed$TEAM_BATTING_1B>1338
-#length(training_transformed$INVALID[training_transformed$INVALID])
-
-training_transformed$INVALID <- FALSE
-training_transformed$INVALID <- training_transformed$INVALID | training_transformed$TEAM_BATTING_2B < 110 | training_transformed$TEAM_BATTING_2B>376
-length(training_transformed$INVALID[training_transformed$INVALID])
-
-training_transformed$INVALID <- training_transformed$INVALID | training_transformed$TEAM_BATTING_3B < 11 | training_transformed$TEAM_BATTING_3B>153
-length(training_transformed$INVALID[training_transformed$INVALID])
-
-training_transformed$INVALID <- training_transformed$INVALID | training_transformed$TEAM_BATTING_HR < 3 | training_transformed$TEAM_BATTING_HR>264
-length(training_transformed$INVALID[training_transformed$INVALID])
-
-training_transformed$INVALID <- training_transformed$INVALID | training_transformed$TEAM_BATTING_H < 935 | training_transformed$TEAM_BATTING_H>2131
-length(training_transformed$INVALID[training_transformed$INVALID])
-
-training_transformed$INVALID <- training_transformed$INVALID | training_transformed$TEAM_BATTING_SO < 308 | training_transformed$TEAM_BATTING_SO>1535
-length(training_transformed$INVALID[training_transformed$INVALID])
-
-training_transformed$INVALID <- training_transformed$INVALID | training_transformed$TEAM_PITCHING_SO < 308 | training_transformed$TEAM_PITCHING_SO>1535
-length(training_transformed$INVALID[training_transformed$INVALID])
-
-
-training_transformed$INVALID <- training_transformed$INVALID | training_transformed$TEAM_BATTING_BB < 282 | training_transformed$TEAM_BATTING_BB>835
-length(training_transformed$INVALID[training_transformed$INVALID])
-
-training_transformed$INVALID <- training_transformed$INVALID | training_transformed$TEAM_PITCHING_BB < 282 | training_transformed$TEAM_PITCHING_BB>835
-length(training_transformed$INVALID[training_transformed$INVALID])
-
-#training_transformed$INVALID <- training_transformed$INVALID | training_transformed$TEAM_BASERUN_CS < 8 | training_transformed$TEAM_BASERUN_CS>191
-#length(training_transformed$INVALID[training_transformed$INVALID])
-
-training_transformed$INVALID <- training_transformed$INVALID | training_transformed$TEAM_BASERUN_SB < 13 | training_transformed$TEAM_BASERUN_SB>638
-length(training_transformed$INVALID[training_transformed$INVALID])
-
-#training_transformed <- training_transformed[!training_transformed$INVALID,]
-
-
-#training_transformed$TEAM_BATTING_1B <- training_transformed$TEAM_BATTING_1B/training_transformed$TEAM_BATTING_H
-
-#training_transformed$TEAM_BATTING_2B <- training_transformed$TEAM_BATTING_2B/training_transformed$TEAM_BATTING_H
-#training_transformed$TEAM_BATTING_3B <- training_transformed$TEAM_BATTING_3B/training_transformed$TEAM_BATTING_H
-#training_transformed$TEAM_BATTING_HR <- training_transformed$TEAM_BATTING_HR/training_transformed$TEAM_BATTING_H
-
-
-#training_transformed$TEAM_PITCHING_HR <- training_transformed$TEAM_PITCHING_HR/training_transformed$TEAM_PITCHING_H
-
-
-library(MASS)
-valid_data <- training_transformed[!training_transformed$INVALID&complete.cases(training_transformed),colnames(training_transformed)[!colnames(training_transformed) %in% c("INVALID")]]
-
-```
-# Model 0: A Mean based model
-
-Let's try a straight up regression whatever linear regression
-
-```{r}
-
-
-model <- lm(TARGET_WINS~1,data=valid_data)
 summary(model)
-model0 <- model
-model0_y_power <- 1
-plot(model)
 
+predicted <- predict(model,valid_data,type='response')
+require("pROC")
+d_roc <- roc(ifelse(valid_data$target>0.5,1,0),predicted)
+plot(d_roc, main = "ROC with pROC")
+ci(d_roc)
 
-
-```
-
-
-# Model 1: A Straight Up Model
-
-Let's try a straight up regression whatever linear regression
-
-```{r}
-
-
-model <- lm(TARGET_WINS~.+0,data=valid_data)
-summary(model)
-model1 <- model
-model1_y_power <- 1
-model1_powers <- 1
-plot(model)
-
+require("caret")
+table(ifelse(valid_data$target>0.5,1,0),ifelse(predicted>0.5,1,0))
 
 ```
 
-# Model 2: A Power Model on Just Y
-
-The residual curves look funky. Let's apply some power transformations to the same model:
-
-```{r}
-
-getBoxCoxCoef<-function(x,y){
-  if (min(x)<=0){1} else {
-    d<-boxcox(x~y, plotit = FALSE)
-    d <- data.frame(d)
-    max_x <- d[d$y == max(d$y),]$x
-    if (abs(max_x)<=(1/3)) 1 else max_x
-  }
-}
-
-model_data <- valid_data
-
-d<-boxcox(TARGET_WINS+0.0001~.,data=model_data, plotit = FALSE)
-
-d <- data.frame(d)
-
-y_power <- d[d$y == max(d$y),]$x
-y_power
-model_data$TARGET_WINS <- with(model_data,TARGET_WINS^y_power)
-model <- lm(TARGET_WINS~.+0,data=model_data)
-summary(model)
-model2 <- model
-model2_y_power <- y_power
-model2_powers <- y_power
-
-plot(model)
-
-
-
-```
-
-
-# Model 3: A Power Model on Y and X
-
-The residual curves look funky. Let's apply some power transformations to the same model:
-
-```{r}
-model_data <- valid_data[,c("TEAM_BATTING_H"
-,"TEAM_BATTING_3B"
-,"TEAM_BATTING_BB"
-,"TEAM_FIELDING_E"
-,"TEAM_BASERUN_SB"
-,"TEAM_FIELDING_DP","TARGET_WINS")]
-#,"TEAM_BATTING_HR"
-#,"TEAM_PITCHING_HR"
-#,"TEAM_PITCHING_BB"
-
-source_cols <- colnames(model_data)
-
-source_cols <- source_cols[source_cols!="TARGET_WINS"]
-
-powers <- lapply(source_cols,function(x){getBoxCoxCoef(model_data[,x],model_data$TARGET_WINS^y_power)})
-
-params <- c(unlist(powers),y_power)
-kable(data.frame(variable=c(source_cols,"TARGET_WINS"),power=params))
-
-power_transforms <- data.frame(t(apply(model_data,1,function(c) { c^params})))
-
-#model <- lm(TARGET_WINS~.,data=power_transforms[,colnames(power_transforms)[!colnames(power_transforms) %in% c("TEAM_PITCHING_H","TEAM_BATTING_H")]])
-#summary(model)
-model <- lm(TARGET_WINS~.+0,power_transforms)
-summary(model)
-model3 <- model
-model3_y_power <- y_power
-model3_powers <- powers
-plot(model)
-
-lapply(colnames(power_transforms),function(c) {list(c,cor(model$residuals,power_transforms[,c]))})
-plot(model$residuals,power_transforms$TEAM_BATTING_3B)
-
-
-```
-
-# Models With Advanced Feature/Transformation Selection: Evaluating transformations 
-
-Let's get fancy by trying other variables/combinations
-
-
-```{r}
-
-
-
-
-combinations <- t(combn(colnames(valid_data)[colnames(valid_data)!="TARGET_WINS"],2))
-
-try_Variable <- function(x,y,label){
-  y_power <- getBoxCoxCoef(y+0.00001,x)
-  x_power <- getBoxCoxCoef(x+0.00001,y)
-  model <- lm(I(y^y_power)~I(x^x_power)+0)
-  s <- summary(model)
-  res <- data.frame(try=paste0(label,"^",x_power),
-                    r2=s$r.squared,
-                    x_power=x_power,
-                    y_power=y_power,
-             coef=s$coefficients[,"Estimate"][1],
-             coef_p=s$coefficients[,"Pr(>|t|)"][1],
-             t_value=s$coefficients[,"t value"][1],
-             min_x=min(x),
-             max_x=max(x),
-             f=s$fstatistic["value"],
-             mse=mean(s$residuals^2),
-             rse=sd(s$residuals),
-             stringsAsFactors=FALSE
-  )
-  rownames(res) <- NULL
-  res
-}
-
-evaluate_variables <- function(data,combination,target){
-  try_this <- data.frame(x = data[,combination[1]]*data[,combination[2]],y=data[,target])
-  res_1 <- try_Variable(try_this$x,try_this$y,paste0("(",combination[1],"*",combination[2],")"))
-
-  try_this <- data.frame(x = data[,combination[1]]/(data[,combination[2]]+0.0000001),y=data[,target])
-  res_2 <- try_Variable(try_this$x,try_this$y,paste0("(",combination[1],"/",combination[2],")"))
-
-  total<-rbind(res_1,res_2)
-  rownames(total) <- NULL
-  total
-}
-
-evaluate_variable <- function(data,variable,target){
-  try_this <- data.frame(x = data[,variable],y=data[,target])
-  res_1 <- try_Variable(try_this$x,try_this$y,paste0("(",variable,")"))
-
-
-  rownames(res_1) <- NULL
-  res_1
-}
-
-evaluate_variable_log <- function(data,variable,target){
-  try_this <- data.frame(x = log(data[,variable]+0.000001),y=data[,target])
-  res_1 <- try_Variable(try_this$x,try_this$y,paste0("log(",variable,")"))
-
-
-  rownames(res_1) <- NULL
-  res_1
-}
-
-unique_cols <- c(unique(c(combinations[,1],combinations[,2])))
-
-
-the_medium_tamale<-lapply(unique_cols,function(c){evaluate_variable(valid_data,c,"TARGET_WINS")})
-the_medium_tamale<-do.call(rbind,the_medium_tamale)
-
-the_log_tamale<-lapply(unique_cols,function(c){evaluate_variable_log(valid_data,c,"TARGET_WINS")})
-the_log_tamale<-do.call(rbind,the_log_tamale)
-
-the_big_tamale<-apply(combinations,1,function(c){evaluate_variables(valid_data,c,"TARGET_WINS")})
-the_big_tamale<-do.call(rbind,the_big_tamale)
-
-the_tamale <- rbind(the_medium_tamale,the_log_tamale,the_big_tamale)
-
-kable(the_tamale[order(-the_tamale$r2),])
-
-```
-
-### Models Based on Calculated Measures - Model 4
-
-
-
-```{r}
-########
-# select columns for model
-
-head(the_tamale[order(-the_tamale$r2),c("try","r2","coef_p")],5)
-
-
-model_data <- data.frame(LOG_TEAM_PITCHING_BB = with(valid_data,log(TEAM_PITCHING_BB)),
-LOG_TEAM_BATTING_BB = with(valid_data,log(TEAM_BATTING_BB)),
-TEAM_BATTING_H_BY_TEAM_BATTING_BB = with(valid_data,(TEAM_BATTING_H*TEAM_BATTING_BB)),
-TEAM_BATTING_H_BY_TEAM_BATTING_2B = with(valid_data,(TEAM_BATTING_H*TEAM_BATTING_2B)),
-TEAM_BATTING_2B_BY_TEAM_PITCHING_BB = with(valid_data,(TEAM_BATTING_2B*TEAM_PITCHING_BB)),
-  TARGET_WINS=with(valid_data,TARGET_WINS)
-)
-
-d<-boxcox(TARGET_WINS+0.0001~.,data=model_data, plotit = TRUE)
-
-d <- data.frame(d)
-
-y_power <- d[d$y == max(d$y),]$x
-
-source_cols <- colnames(model_data)
-
-source_cols <- source_cols[source_cols!="TARGET_WINS"]
-
-powers <- lapply(source_cols,function(x){getBoxCoxCoef(model_data[,x],model_data$TARGET_WINS^y_power)})
-
-params <- c(unlist(powers),y_power)
-kable(data.frame(variable=c(source_cols,"TARGET_WINS"),power=params))
-
-power_transforms <- data.frame(t(apply(model_data,1,function(c) { c^params})))
-
-
-#model <- lm(TARGET_WINS~.,data=power_transforms[,colnames(power_transforms)[!colnames(power_transforms) %in% c("TEAM_PITCHING_H","TEAM_BATTING_H")]])
-#summary(model)
-model <- lm(TARGET_WINS~.+0,power_transforms[,colnames(power_transforms)[!colnames(power_transforms) %in% c("TEAM_BATTING_3B_BY_TEAM_PITCHING_HR","TEAM_BATTING_BB_BY_TEAM_PITCHING_BB")]])
-summary(model)
-model4 <- model
-model4_y_power <- y_power
-model4_powers <- powers
-
-plot(model)
-
-
-
-```
-
-
-
-# Model 5: A Straight Up Model, w/o intercept calcellation
-
-Let's try a straight up regression whatever linear regression
-
-```{r}
-
-
-model <- lm(TARGET_WINS~.,data=valid_data)
-summary(model)
-model5 <- model
-model5_y_power <- 1
-model5_powers <- powers
-
-plot(model)
-
-
-
-```
 
 
 
 
 ## 3. BUILD MODELS (25 Points)
 
-We built/evaluated the following models:
+Using the training data, build at least three different binary logistic regression models, using different variables (or the same variables with different transformations). You may select the variables manually, use an approach such as Forward or Stepwise, use a different approach, or use a combination of techniques. Describe the techniques you used. If you manually selected a variable for inclusion into the model or exclusion into the model, indicate why this was done.
 
-
-Using the training data set, build at least three different multiple linear regression models, using different variables (or the same variables with different transformations). Since we have not yet covered automated variable selection methods, you should select the variables manually (unless you previously learned Forward or Stepwise selection, etc.). Since you manually selected a variable for inclusion into the model or exclusion into the model, indicate why this was done.
-
-Discuss the coefficients in the models, do they make sense? For example, if a team hits a lot of Home Runs, it would be reasonably expected that such a team would win more games. However, if the coefficient is negative (suggesting that the team would lose more games), then that needs to be discussed. Are you keeping the model even though it is counter intuitive? Why? The boss needs to know.
+Be sure to explain how you can make inferences from the model, as well as discuss other relevant model output. Discuss the coefficients in the models, do they make sense? Are you keeping the model even though it is counter intuitive? Why? The boss needs to know.
 
 
 
 ## 4. SELECT MODELS (25 Points)
-Decide on the criteria for selecting the best multiple linear regression model. Will you select a model with slightly worse performance if it makes more sense or is more parsimonious? Discuss why you selected your model.
-For the multiple linear regression model, will you use a metric such as Adjusted R2, RMSE, etc.? Be sure to explain how you can make inferences from the model, discuss multi-collinearity issues (if any), and discuss other relevant model output. Using the training data set, evaluate the multiple linear regression model based on 
 
-a. mean squared error
-b. R2, 
-c. F-statistic, 
-d. residual plots. 
+Decide on the criteria for selecting the best binary logistic regression model. Will you select models with slightly worse performance if it makes more sense or is more parsimonious? Discuss why you selected your models. 
 
-Make predictions using the training_transformed data set.
+For the binary logistic regression model, will you use a metric such as log likelihood, AIC, ROC curve, etc.? Using the training data set, evaluate the binary logistic regression model based on (a) accuracy, (b) classification error rate, (c) precision, (d) sensitivity, (e) specificity, (f) F1 score, (g) AUC, and (h) confusion matrix. Make predictions using the evaluation data set.
 
 ```{r}
-models <- list(model0,model1,model2,model3,model4,model5)
 
-model_metrics <- lapply(models,function (m){ 
-  s <- summary(m)
-  res <- data.frame(r2=s$r.squared,
-          rse=s$sigma,
-          me=sqrt(mean(s$residuals^2)),
-          fstatistic=head(c(s$fstatistic[1],1),1),
-          fstatistic_df1=head(c(s$fstatistic[2],1),1),
-          fstatistic_df2=head(c(s$fstatistic[3],nrow(valid_data)),1)
-          )
-  res
-  })
-
-combined_results <- do.call(rbind,model_metrics)
-rownames(combined_results) <- NULL
-combined_results <- data.frame(
-  model = c("model1","model3","model3-1","model3-2","model4","model2"),
-  description = c("Mean-based model","Model with Straight-Up Variables, Zero Intercept","Model with Y Power Transformation Using Boxcox","Model with X&Y  Power Transformation Using Boxcox", "Model with Y & Automatic Feature Set 1 w/Power Transformation Using Boxcox", "Model with Straight-Up Variables"),
-  combined_results)
-
-y_powers<- c(model0_y_power,model1_y_power,model2_y_power,model3_y_power,model4_y_power,model5_y_power)
-combined_results$me <- combined_results$me ^ (1/y_powers)
-kable(combined_results)
-
-combined_results <-combined_results[order(combined_results$model),]
-kable(combined_results[combined_results$model %in% c("model1","model2","model3","model4"),])
-
-
-```
-
-
-
-# Predictions
-
-```{r}
-# make up for missing values in the evaluation dataset by imputing wiht the training medians
-
-# make up for missing TEAM_BATTING_SO
-evaluation[is.na(evaluation$TEAM_BATTING_SO),]$TEAM_BATTING_SO <- median(training$TEAM_BATTING_SO, na.rm = TRUE)
-
-# make up for missing TEAM_BASERUN_SB
-evaluation[is.na(evaluation$TEAM_BASERUN_SB),]$TEAM_BASERUN_SB <- median(training$TEAM_BASERUN_SB, na.rm = TRUE)
-
-# make up for missing TEAM_PITCHING_SO
-evaluation[is.na(evaluation$TEAM_PITCHING_SO),]$TEAM_PITCHING_SO <- median(training$TEAM_PITCHING_SO, na.rm = TRUE)
-
-# make up for missing TEAM_FIELDING_DP
-evaluation[is.na(evaluation$TEAM_FIELDING_DP),]$TEAM_FIELDING_DP <- median(training$TEAM_FIELDING_DP, na.rm = TRUE)
-
-
-# apply validation rules
-
-evaluation$INVALID <- FALSE
-evaluation$INVALID <- evaluation$INVALID | evaluation$TEAM_BATTING_2B < 110 | evaluation$TEAM_BATTING_2B>376
-length(evaluation$INVALID[evaluation$INVALID])
-
-evaluation$INVALID <- evaluation$INVALID | evaluation$TEAM_BATTING_3B < 11 | evaluation$TEAM_BATTING_3B>153
-length(evaluation$INVALID[evaluation$INVALID])
-
-evaluation$INVALID <- evaluation$INVALID | evaluation$TEAM_BATTING_HR < 3 | evaluation$TEAM_BATTING_HR>264
-length(evaluation$INVALID[evaluation$INVALID])
-
-evaluation$INVALID <- evaluation$INVALID | evaluation$TEAM_BATTING_H < 935 | evaluation$TEAM_BATTING_H>2131
-length(evaluation$INVALID[evaluation$INVALID])
-
-evaluation$INVALID <- evaluation$INVALID | evaluation$TEAM_BATTING_SO < 308 | evaluation$TEAM_BATTING_SO>1535
-length(evaluation$INVALID[evaluation$INVALID])
-
-evaluation$INVALID <- evaluation$INVALID | evaluation$TEAM_PITCHING_SO < 308 | evaluation$TEAM_PITCHING_SO>1535
-length(evaluation$INVALID[evaluation$INVALID])
-
-
-evaluation$INVALID <- evaluation$INVALID | evaluation$TEAM_BATTING_BB < 282 | evaluation$TEAM_BATTING_BB>835
-length(evaluation$INVALID[evaluation$INVALID])
-
-evaluation$INVALID <- evaluation$INVALID | evaluation$TEAM_PITCHING_BB < 282 | evaluation$TEAM_PITCHING_BB>835
-length(evaluation$INVALID[evaluation$INVALID])
-
-
-
-model1_predictions <- predict(model1,evaluation)^(1/model1_y_power)
-model1_predictions[evaluation$INVALID] <- NA
-
-model2_predictions <- predict(model2,evaluation)^(1/model2_y_power)
-model2_predictions[evaluation$INVALID] <- NA
-
-
-kable(data.frame(model1_predictions = model1_predictions))
-
-
-```
-
-
-# Best subset
-
-```{r}
-library(leaps)
-library(faraway)
-colnames(valid_data)
-models <- regsubsets(TARGET_WINS~.+0,data=valid_data,nvmax=16)
-ms<-summary(models)
-names(models)
-plot(summary(models)$cp,xlab="Number of Variables",ylab="Cp")
-plot(models,scale="Cp")
-
-m <- which.min(summary(models)$cp)
-models[m]
-
-columns <- ms$which[4,]
-columns <- columns[columns]
-model <- lm(TARGET_WINS~.+0,data=valid_data[,c("TARGET_WINS",names(columns)[-1])])
-summary(model)
-vif(model) # variance inflation factors 
-vif(valid_data[,c("TARGET_WINS",names(columns)[-1])])
 ```
