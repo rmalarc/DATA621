@@ -33,8 +33,11 @@ columns <- colnames(training)
 target <- "target"
 inputs <- columns[!columns %in% c(target,"INDEX")]
 
+
 summary <- describe(training[,c(target,inputs)])[,c("n","mean","sd","median","min","max")]
 summary$completeness <- summary$n/nrow(training)
+summary$cv <- 100*summary$sd/summary$mean
+
 kable(summary)
 
 ```
@@ -66,28 +69,32 @@ require("reshape2")
 require("ggplot2")
 # Let's melt the DF so that we can plot it more easily
 
-ggplot(melt(data.frame(scale(training)), measure.vars = inputs),
+ggplot(melt(data.frame(scale(training[,inputs]),target=training[,target]), measure.vars = inputs),
        aes(x=variable,y=value)
        )+
-    geom_boxplot(aes(fill = factor(target))) +
-    coord_flip()
+    geom_boxplot(aes(fill = factor(target)))+
+  guides(fill=guide_legend(title="Crime Rate Above Median")) +
+   theme(legend.position="bottom")+
+    coord_flip()+
+  labs(title="Boxplot of Target ~ Predictors", y="Normalized Values", x="Predictor")
 
 ```
 
-
-c. Is the data correlated to the target variable (or to other variables?)
+possible correlations
 
 ```{r}
-pairs(~.,data=training[,c(target,inputs)], 
-   main="Scatterplot Matrix")
 
-# LEt's see the correlation matrix
+training_normalized <- data.frame(scale(training[,inputs]),target=training[,target])
 
-kable(cor(training[,c(target,inputs)], use="pairwise.complete.obs", method="kendall") )
+summary_positive <- describe(training_normalized[training_normalized$target==1,c(target,inputs)])[,c("mean","n")]
+summary_negative <- describe(training_normalized[training_normalized$target==0,c(target,inputs)])[,c("mean","n")]
+summary_by_target <- merge(summary_positive,summary_negative,by="row.names")
+colnames(summary_by_target) <- c("Variable","CR Above Median - Avg","CR Above Median - n","CR Below Median - Avg", "CR Below Median - n")
+summary_by_target$delta <- abs(summary_by_target[,"CR Above Median - Avg"]-summary_by_target[,"CR Below Median - Avg"])
+
+kable(merge(metadata,summary_by_target)[order(-summary_by_target$delta),])
 ```
 
-
-d. Are any of the variables missing and need to be imputed "fixed"?
 
 
 ## 2. DATA PREPARATION (25 Points)
@@ -100,8 +107,51 @@ d. Mathematical transforms such as log or square root (or use Box-Cox)
 e. Combine variables (such as ratios or adding or multiplying) to create new variables
 
 
+regression before transformations
+
 ```{r}
 valid_data <- training
+
+model <- glm(I(target)~.,data=valid_data,family = binomial)
+
+summary(model)
+
+predicted <- predict(model,valid_data,type='response')
+require("pROC")
+d_roc <- roc(ifelse(valid_data$target>0.5,1,0),predicted)
+plot(d_roc, main = "ROC with pROC")
+ci(d_roc)
+
+require("caret")
+table(ifelse(valid_data$target>0.5,1,0),ifelse(predicted>0.5,1,0))
+
+```
+
+
+
+Cap all values to their 5 and 95 percentiles
+
+```{r}
+
+transformed <- training
+
+cap <- function(x){
+    quantiles <- c( mean(x)-3*sd(x), mean(x)+3*sd(x) )
+    x[ x < quantiles[1] ] <- quantiles[1]
+    x[ x > quantiles[2] ] <- quantiles[2]
+    x
+}
+
+#transformed$black <- log(transformed$black)
+transformed<-data.frame(apply( transformed[,inputs],2, cap),target=transformed$target)
+
+
+```
+
+regression after transformations
+
+```{r}
+valid_data <- transformed
 
 model <- glm(I(target)~.,data=valid_data,family = binomial)
 
@@ -128,6 +178,23 @@ Using the training data, build at least three different binary logistic regressi
 
 Be sure to explain how you can make inferences from the model, as well as discuss other relevant model output. Discuss the coefficients in the models, do they make sense? Are you keeping the model even though it is counter intuitive? Why? The boss needs to know.
 
+```{r}
+valid_data <- transformed
+predictors <- inputs[!inputs %in% c("indus","chas","lstat","rm")]
+model <- glm(I(target)~.,data=valid_data[,c(predictors,target)],family = binomial)
+
+summary(model)
+
+predicted <- predict(model,valid_data,type='response')
+require("pROC")
+d_roc <- roc(ifelse(valid_data$target>0.5,1,0),predicted)
+plot(d_roc, main = "ROC with pROC")
+ci(d_roc)
+
+require("caret")
+table(ifelse(valid_data$target>0.5,1,0),ifelse(predicted>0.5,1,0))
+
+```
 
 
 ## 4. SELECT MODELS (25 Points)
