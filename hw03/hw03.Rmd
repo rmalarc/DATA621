@@ -229,5 +229,5 @@ cap <- function(col){
 evaluation_transformed <- data.frame(sapply(inputs,function(x){cap(x)}))
 evaluation$predict <- predict(model,evaluation_transformed,type='response')>0.5
 
-data.frame(evaluation)
+kable(data.frame(evaluation))
 ```
