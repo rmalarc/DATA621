@@ -118,7 +118,7 @@ Cap all values to their 5 and 95 percentiles
 transformed <- training
 
 cap <- function(x){
-    quantiles <- c( mean(x)-3*sd(x), mean(x)+3*sd(x) )
+    quantiles <- c( qnorm(0.05,mean(x),sd(x)), qnorm(0.95,mean(x),sd(x)) )
     x[ x < quantiles[1] ] <- max(0,quantiles[1])
     x[ x > quantiles[2] ] <- quantiles[2]
     x
@@ -192,6 +192,10 @@ d_roc <- roc(ifelse(test$target>0.5,1,0),predicted)
 plot(d_roc, main = "ROC with pROC")
 #ci(d_roc)
 
+
+
+plot(model)
+
 require("caret")
 table(ifelse(test$target>0.5,1,0),ifelse(predicted>0.5,1,0))
 
@@ -210,7 +214,7 @@ For the binary logistic regression model, will you use a metric such as log like
 ```{r}
 
 mean_sd <- function(x){
-    c( mean(x)-3*sd(x), mean(x)+3*sd(x) )
+  c( qnorm(0.05,mean(x),sd(x)), qnorm(0.95,mean(x),sd(x)) )
 }
 
 
