@@ -109,24 +109,6 @@ e. Combine variables (such as ratios or adding or multiplying) to create new var
 
 regression before transformations
 
-```{r}
-valid_data <- training
-
-model <- glm(I(target)~.,data=valid_data,family = binomial)
-
-summary(model)
-
-predicted <- predict(model,valid_data,type='response')
-require("pROC")
-d_roc <- roc(ifelse(valid_data$target>0.5,1,0),predicted)
-plot(d_roc, main = "ROC with pROC")
-ci(d_roc)
-
-require("caret")
-table(ifelse(valid_data$target>0.5,1,0),ifelse(predicted>0.5,1,0))
-
-```
-
 
 
 Cap all values to their 5 and 95 percentiles
@@ -137,7 +119,7 @@ transformed <- training
 
 cap <- function(x){
     quantiles <- c( mean(x)-3*sd(x), mean(x)+3*sd(x) )
-    x[ x < quantiles[1] ] <- quantiles[1]
+    x[ x < quantiles[1] ] <- max(0,quantiles[1])
     x[ x > quantiles[2] ] <- quantiles[2]
     x
 }
@@ -148,26 +130,44 @@ transformed<-data.frame(apply( transformed[,inputs],2, cap),target=transformed$t
 
 ```
 
-regression after transformations
+
+split the dataset into training and testing
 
 ```{r}
-valid_data <- transformed
 
-model <- glm(I(target)~.,data=valid_data,family = binomial)
+
+## 75% of the sample size
+smp_size <- floor(0.75 * nrow(transformed))
+
+## set the seed to make your partition reproductible
+set.seed(123)
+train_ind <- c(sample(seq_len(nrow(transformed[transformed$target==1,])), size = smp_size/2),sample(seq_len(nrow(transformed[transformed$target==0,])), size = smp_size/2))
+
+train <- transformed[train_ind, ]
+test <- transformed[-train_ind, ]
+```
+
+
+
+```{r}
+
+model <- glm(I(target)~.,data=train,family = binomial)
 
 summary(model)
 
-predicted <- predict(model,valid_data,type='response')
+predicted <- predict(model,test,type='response')
 require("pROC")
-d_roc <- roc(ifelse(valid_data$target>0.5,1,0),predicted)
+d_roc <- roc(ifelse(test$target>0.5,1,0),predicted)
 plot(d_roc, main = "ROC with pROC")
-ci(d_roc)
+#ci(d_roc)
 
 require("caret")
-table(ifelse(valid_data$target>0.5,1,0),ifelse(predicted>0.5,1,0))
+table(ifelse(test$target>0.5,1,0),ifelse(predicted>0.5,1,0))
 
 ```
 
+
+regression after transformations
 
 
 
@@ -180,19 +180,20 @@ Be sure to explain how you can make inferences from the model, as well as discus
 
 ```{r}
 valid_data <- transformed
-predictors <- inputs[!inputs %in% c("indus","chas","lstat","rm")]
-model <- glm(I(target)~.,data=valid_data[,c(predictors,target)],family = binomial)
+predictors <- inputs[!inputs %in% c("indus","chas","lstat","rm","black","zn")]
+
+model <- glm(I(target)~.,data=train[,c(predictors,target)],family = binomial)
 
 summary(model)
 
-predicted <- predict(model,valid_data,type='response')
+predicted <- predict(model,test,type='response')
 require("pROC")
-d_roc <- roc(ifelse(valid_data$target>0.5,1,0),predicted)
+d_roc <- roc(ifelse(test$target>0.5,1,0),predicted)
 plot(d_roc, main = "ROC with pROC")
-ci(d_roc)
+#ci(d_roc)
 
 require("caret")
-table(ifelse(valid_data$target>0.5,1,0),ifelse(predicted>0.5,1,0))
+table(ifelse(test$target>0.5,1,0),ifelse(predicted>0.5,1,0))
 
 ```
 
@@ -203,6 +204,30 @@ Decide on the criteria for selecting the best binary logistic regression model. 
 
 For the binary logistic regression model, will you use a metric such as log likelihood, AIC, ROC curve, etc.? Using the training data set, evaluate the binary logistic regression model based on (a) accuracy, (b) classification error rate, (c) precision, (d) sensitivity, (e) specificity, (f) F1 score, (g) AUC, and (h) confusion matrix. Make predictions using the evaluation data set.
 
+
+# Predictions
+
 ```{r}
 
+mean_sd <- function(x){
+    c( mean(x)-3*sd(x), mean(x)+3*sd(x) )
+}
+
+
+trans_params<-data.frame(apply( transformed[,inputs],2, mean_sd))
+
+cap <- function(col){
+    quantiles <- trans_params[,col]
+    x <- evaluation[,col]
+    x[ x < quantiles[1] ] <- max(0,quantiles[1])
+    x[ x > quantiles[2] ] <- quantiles[2]
+    x
+}
+
+#transformed$black <- log(transformed$black)
+
+evaluation_transformed <- data.frame(sapply(inputs,function(x){cap(x)}))
+evaluation$predict <- predict(model,evaluation_transformed,type='response')>0.5
+
+data.frame(evaluation)
 ```
