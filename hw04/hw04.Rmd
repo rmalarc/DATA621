@@ -1,5 +1,5 @@
 ---
-title: "DATA621 - Crime"
+title: "DATA621 - Insurance"
 author: "Daniel Hong, Mauricio Alarcon, Maxwell Wagner"
 date: "October 10, 2016"
 output: html_document
@@ -24,13 +24,13 @@ require("knitr")
 require("psych")
 # Let's load the data
 
-training <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw03/crime-training-data.csv'))
-metadata <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw03/crime-metadata.csv'))
-evaluation <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw03/crime-evaluation-data.csv'))
+training <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw04/insurance_training_data.csv'))
+metadata <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw04/insurance-metadata.csv'))
+evaluation <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw04/insurance-evaluation-data.csv'))
 
 kable(metadata)
 columns <- colnames(training)
-target <- "target"
+target <- "TARGET_FLAG"
 inputs <- columns[!columns %in% c(target,"INDEX")]
 
 
@@ -40,78 +40,152 @@ summary$cv <- 100*summary$sd/summary$mean
 
 kable(summary)
 
+head(training)
+summary(training)
 ```
-
-b. Bar Chart or Box Plot of the data
-
-### How are the input values distributed?, do we need to do something about them?
-
-Here's the distribution of the values for each of the variables
-
-```{r}
-require("reshape2")
-require("ggplot2")
-# Let's melt the DF so that we can plot it more easily
-
-ggplot(melt(training, measure.vars = inputs)
-       ,aes(x=variable,y=value)
-       )+
-    geom_boxplot(aes(fill = factor(target))) +
-    coord_flip()
-```
-
-Some of these probably need to be rescaled: TEAM_PITCHING_H, TEAM_PITCHING_SO  (what is this????)
-
-Let's get a view of the normalized values:
-
-```{r}
-require("reshape2")
-require("ggplot2")
-# Let's melt the DF so that we can plot it more easily
-
-ggplot(melt(data.frame(scale(training[,inputs]),target=training[,target]), measure.vars = inputs),
-       aes(x=variable,y=value)
-       )+
-    geom_boxplot(aes(fill = factor(target)))+
-  guides(fill=guide_legend(title="Crime Rate Above Median")) +
-   theme(legend.position="bottom")+
-    coord_flip()+
-  labs(title="Boxplot of Target ~ Predictors", y="Normalized Values", x="Predictor")
-
-```
-
-possible correlations
-
-```{r}
-
-training_normalized <- data.frame(scale(training[,inputs]),target=training[,target])
-
-summary_positive <- describe(training_normalized[training_normalized$target==1,c(target,inputs)])[,c("mean","n")]
-summary_negative <- describe(training_normalized[training_normalized$target==0,c(target,inputs)])[,c("mean","n")]
-summary_by_target <- merge(summary_positive,summary_negative,by="row.names")
-colnames(summary_by_target) <- c("Variable","CR Above Median - Avg","CR Above Median - n","CR Below Median - Avg", "CR Below Median - n")
-summary_by_target$delta <- abs(summary_by_target[,"CR Above Median - Avg"]-summary_by_target[,"CR Below Median - Avg"])
-
-kable(merge(metadata,summary_by_target)[order(-summary_by_target$delta),])
-```
-
-
 
 ## 2. DATA PREPARATION (25 Points)
-Describe how you have transformed the data by changing the original variables or creating new variables. If you did transform the data or create new variables, discuss why you did this. Here are some possible transformations.
 
-a. Fix missing values (maybe with a Mean or Median value)
-b. Create flags to suggest if a variable was missing
-c. Transform data by putting it into buckets
-d. Mathematical transforms such as log or square root (or use Box-Cox)
-e. Combine variables (such as ratios or adding or multiplying) to create new variables
+Based on the dataset description we need to:
+
+ * Convert INCOME to numeric, replace 0 for NA
+ * Convert PARENT1 to flag (1/0)
+ * Convert HOME_VAL to NON_HOMEOWNER flag
+ * Convert MSTATUS to Flag IS_SINGLE (1/0)
+ * Convert SEX to Flag (IS_MALE)
+ * Breakout EDUCATION into ED_HS, ED_BACHELORS,ED_MASTERS, ED_PHD
+ * Breakout JOB into JOB_BLUE_COLLAR, JOB_CLERICAL, JOB_PROFESSIONAL, JOB_MANAGERIAL, JOB_LAWYER, JOB_STUDENT,JOB_DOCTOR, JOB_HOME_MAKER
+ * Convert CAR_USE to flat(1/0 IS_COMMERCIAL)
+ * Convert BLUEBOOK to numeric
+ * Breakout CAR_TYPE into: CAR_PANEL_TRUCK,CAR_PICKUP,CAR_SPORTS_CAR,CAR_VAN,CAR_SUV
+ * Convert RED_CAR to flag (1/0)
+ * Convert OLDCLAIM to numeric   
+ * Convert REVOKED to flag (1/0)
+ * Convert URBANICITY to flag (1/0 IS_URBAN)
+ * Cap numerical values to their 5/95 percentiles
+ * Fill missing values with mean for: AGE, YOJ, CAR_AGE
+ 
+```{r}
+
+parseStringValue <- function(v, zeroToNa){
+  tmpVal <- as.numeric(gsub("[\\$,]","", v))
+  if (!is.na(tmpVal) && tmpVal == 0 && zeroToNa) { NA } else {tmpVal}
+}
+
+transform <- function(d){
+  outputCols<- c("TARGET_FLAG","TARGET_AMT","AGE", "YOJ", "CAR_AGE","KIDSDRIV","HOMEKIDS","TRAVTIME","TIF","CLM_FREQ","MVR_PTS","CAR_AGE")
+  
+
+  #* Convert INCOME to numeric, replace 0 for NA
+  d['INCOME'] <- parseStringValue(d['INCOME'],TRUE)
+  outputCols <- c(outputCols,'INCOME')
+ 
+  #* Convert PARENT1 to flag (1/0)
+  d['PARENT1'] <- if (d['PARENT1']=="Yes") {1} else {0}
+
+  #* Convert HOME_VAL to NON_HOMEOWNER flag
+  d['NON_HOMEOWNER'] <- if (is.na(parseStringValue(d['HOME_VAL'],TRUE))) {1} else {0}
+  outputCols <- c(outputCols,'NON_HOMEOWNER')
+  
+  #* Convert MSTATUS to Flag  IS_SINGLE (1/0
+  #levels(training$MSTATUS)
+  d['IS_SINGLE'] <- if (d['MSTATUS']=="z_No") {1} else {0}
+  outputCols <- c(outputCols,'IS_SINGLE')
+
+  #* Convert SEX to Flag (IS_MALE)
+  d['IS_MALE'] <- if (d['SEX']=="M") {1} else {0}
+  outputCols <- c(outputCols,'IS_MALE')
+  
+  #* Breakout EDUCATION into ED_HS, ED_BACHELORS,ED_MASTERS, ED_PHD
+  d['ED_HS'] <- if (d['EDUCATION']=="z_High School") {1} else {0}
+  d['ED_BACHELORS'] <- if (d['EDUCATION']=="Bachelors") {1} else {0}
+  d['ED_MASTERS'] <- if (d['EDUCATION']=="Masters") {1} else {0}
+  d['ED_PHD'] <- if (d['EDUCATION']=="PhD") {1} else {0}
+  outputCols <- c(outputCols,'ED_HS','ED_BACHELORS','ED_MASTERS','ED_PHD')
+
+  #* Breakout JOB into JOB_BLUE_COLLAR, JOB_CLERICAL, JOB_PROFESSIONAL, JOB_MANAGERIAL, JOB_LAWYER, JOB_STUDENT, JOB_DOCTOR, JOB_HOME_MAKER
+  d['JOB_BLUE_COLLAR'] <- if (d['JOB']=="z_Blue Collar") {1} else {0}
+  d['JOB_CLERICAL'] <- if (d['JOB']=="Clerical") {1} else {0}
+  d['JOB_PROFESSIONAL'] <- if (d['JOB']=="Professional") {1} else {0}
+  d['JOB_MANAGERIAL'] <- if (d['JOB']=="Manager") {1} else {0}
+  d['JOB_LAWYER'] <- if (d['JOB']=="Lawyer") {1} else {0}
+  d['JOB_STUDENT'] <- if (d['JOB']=="Student") {1} else {0}
+  d['JOB_DOCTOR'] <- if (d['JOB']=="Doctor") {1} else {0}
+  d['JOB_HOME_MAKER'] <- if (d['JOB']=="Home Maker") {1} else {0}
+  outputCols <- c(outputCols,'JOB_BLUE_COLLAR', 'JOB_CLERICAL', 'JOB_PROFESSIONAL', 'JOB_MANAGERIAL', 'JOB_LAWYER', 'JOB_STUDENT', 'JOB_DOCTOR', 'JOB_HOME_MAKER')
+
+  #* Convert CAR_USE to flat(1/0 IS_COMMERCIAL)
+  #levels(training$CAR_USE)
+  d['IS_COMMERCIAL'] <- if (d['CAR_USE']=="Commercial") {1} else {0}
+  outputCols <- c(outputCols,'IS_COMMERCIAL')
+  
+  
+  #* Convert BLUEBOOK to numeric
+  d['BLUEBOOK'] <- parseStringValue(d['BLUEBOOK'],FALSE)
+  outputCols <- c(outputCols,'BLUEBOOK')
+
+  #* Breakout CAR_TYPE into: CAR_PANEL_TRUCK,CAR_PICKUP,CAR_SPORTS_CAR,CAR_VAN,CAR_SUV
+  #levels(training$CAR_TYPE)
+  d['CAR_PANEL_TRUCK'] <- if (d['CAR_TYPE']=="Panel Truck") {1} else {0}
+  d['CAR_PICKUP'] <- if (d['CAR_TYPE']=="Pickup") {1} else {0}
+  d['CAR_SPORTS_CAR'] <- if (d['CAR_TYPE']=="Sports Car") {1} else {0}
+  d['CAR_VAN'] <- if (d['CAR_TYPE']=="Van") {1} else {0}
+  d['CAR_SUV'] <- if (d['CAR_TYPE']=="z_SUV") {1} else {0}
+  outputCols <- c(outputCols,'CAR_PANEL_TRUCK','CAR_PICKUP','CAR_SPORTS_CAR','CAR_VAN','CAR_SUV')
+
+  #* Convert RED_CAR to flag (1/0)
+  #levels(training$RED_CAR)
+  d['RED_CAR'] <- if (d['RED_CAR']=="yes") {1} else {0}
+  outputCols <- c(outputCols,'RED_CAR')
+  
+  #* Convert OLDCLAIM to numeric
+  #levels(training$OLDCLAIM)
+  d['OLDCLAIM'] <- parseStringValue(d['OLDCLAIM'],TRUE)
+  outputCols <- c(outputCols,'OLDCLAIM')
+  
+  #* Convert REVOKED to flag (1/0)
+  #levels(training$REVOKED)
+  d['REVOKED'] <- if (d['REVOKED']=="Yes") {1} else {0}
+  outputCols <- c(outputCols,'REVOKED')
+  
+  #* Convert URBANICITY to flag (1/0 IS_URBAN)
+  #levels(training$URBANICITY)
+  d['IS_URBAN'] <- if (d['URBANICITY']=="Highly Urban/ Urban") {1} else {0}
+  outputCols <- c(outputCols,'IS_URBAN')
+  
+   
+  d[outputCols]
+
+}
+training_trans<-data.frame(t(rbind(apply(training,1,transform))))
+evaluation_trans<-data.frame(t(rbind(apply(evaluation,1,transform))))
 
 
-regression before transformations
 
 
 
-Cap all values to their 5 and 95 percentiles
+columns <- colnames(training_trans)
+target <- c("TARGET_FLAG","TARGET_AMT")
+inputs <- columns[!columns %in% c(target,"INDEX")]
+
+
+summary <- describe(training_trans[,c(target,inputs)])[,c("n","mean","sd","median","min","max")]
+summary$completeness <- summary$n/nrow(training_trans)
+summary$cv <- 100*summary$sd/summary$mean
+
+kable(summary)
+
+head(training_trans)
+summary(training_trans)
+
+
+  #* Cap numerical values to their 5/95 percentiles
+  #* Fill missing values with mean for: AGE, YOJ, CAR_AGE
+
+```
+
+# <----- I'M DOWN TO HERE.... MA
+
 
 ```{r}
 
@@ -130,6 +204,56 @@ transformed<-data.frame(apply( transformed[,inputs],2, cap),target=transformed$t
 
 ```
 
+### Dealing with Missing data
+
+``` 
+training<-training[complete.cases(training),]
+
+```
+
+b. Bar Chart or Box Plot of the data
+
+### How are the input values distributed?, do we need to do something about them?
+
+Here's the distribution of the values for each of the variables
+
+Let's get a view of the normalized values:
+
+```{r}
+require("reshape2")
+require("ggplot2")
+# Let's melt the DF so that we can plot it more easily
+training_normalized <- data.frame(scale(training[,inputs]),target=training[,target])
+
+
+ggplot(melt(training_normalized, measure.vars = inputs),
+       aes(x=variable,y=value)
+       )+
+    geom_boxplot(aes(fill = factor(target)))+
+  guides(fill=guide_legend(title="Was Car in a crash")) +
+   theme(legend.position="bottom")+
+    coord_flip()+
+  labs(title="Boxplot of Target ~ Predictors", y="Normalized Values", x="Predictor")
+
+```
+
+possible correlations
+
+```{r}
+
+
+summary_positive <- describe(training_normalized[training_normalized$target==1,c(target,inputs)])[,c("mean","n")]
+summary_negative <- describe(training_normalized[training_normalized$target==0,c(target,inputs)])[,c("mean","n")]
+summary_by_target <- merge(summary_positive,summary_negative,by="row.names")
+colnames(summary_by_target) <- c("Variable","In car crash - Avg","In car crash - n","NOT In car crash - Avg", "NOT In car crash - n")
+summary_by_target$delta <- abs(summary_by_target[,"In car crash - Avg"]-summary_by_target[,"NOT In car crash - Avg"])
+
+kable(merge(metadata,summary_by_target)[order(-summary_by_target$delta),])
+```
+
+
+
+## TRAINIG DATASETS
 
 split the dataset into training and testing
 
