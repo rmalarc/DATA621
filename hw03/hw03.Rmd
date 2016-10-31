@@ -188,7 +188,7 @@ summary(model)
 
 predicted <- predict(model,test,type='response')
 require("pROC")
-d_roc <- roc(ifelse(test$target>0.5,1,0),predicted)
+d_roc <- roc(test$target,predicted)
 plot(d_roc, main = "ROC with pROC")
 #ci(d_roc)
 
@@ -197,10 +197,65 @@ plot(d_roc, main = "ROC with pROC")
 plot(model)
 
 require("caret")
-table(ifelse(test$target>0.5,1,0),ifelse(predicted>0.5,1,0))
+table(test$target,ifelse(predicted>0.5,1,0))
 
 ```
 
+
+```{r}
+
+d<- data.frame(class=test$target,scored.class=ifelse(predicted>0.5,1,0))
+
+# let's use this helper function that will return all the rates for future calculations
+confusion_matrix <- function(d){
+  data.frame(tp=nrow(d[d$class==1 & d$scored.class==1,]),
+             tn=nrow(d[d$class==0 & d$scored.class==0,]),
+             fp=nrow(d[d$class==0 & d$scored.class==1,]),
+             fn=nrow(d[d$class==1 & d$scored.class==0,])
+  )
+}
+
+confusion_matrix(d)
+accuracy<-function(d){
+  f <- confusion_matrix(d)
+  (f$tp+f$tn)/(f$tp+f$fp+f$tn+f$fn)
+}
+accuracy(d)
+
+classification_error_rate<-function(d){
+  f <- confusion_matrix(d)
+  (f$fp+f$fn)/(f$tp+f$fp+f$tn+f$fn)
+}
+classification_error_rate(d)
+
+precision_c<-function(d){
+  f <- confusion_matrix(d)
+  (f$tp)/(f$tp+f$fp)
+}
+precision_c(d)
+
+sensitivity_c<-function(d){
+  f <- confusion_matrix(d)
+  (f$tp)/(f$tp+f$fn)
+}
+sensitivity_c(d)
+
+specificity_c<-function(d){
+  f <- confusion_matrix(d)
+  (f$tn)/(f$tn+f$fp)
+}
+specificity_c(d)
+
+
+f1_score<-function(d){
+  p<- precision_c(d)
+  s<- sensitivity_c(d)
+  2*p*s/(p+s)
+}
+f1_score(d)
+
+
+```
 
 ## 4. SELECT MODELS (25 Points)
 
