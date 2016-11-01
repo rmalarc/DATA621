@@ -260,9 +260,12 @@ Let's get a view of the normalized values:
 ```{r}
 require("reshape2")
 require("ggplot2")
+detach(package:plyr)
+require("dplyr")
+
 # Let's melt the DF so that we can plot it more easily
-training_normalized <- cbind(data.frame(scale(training_trans[,inputs_num])),training_trans[,c(inputs_bin,target_bin)])
-training_normalized$TARGET_FLAG <- as.factor(training_normalized$TARGET_FLAG)
+training_normalized <- cbind(data.frame(scale(training_trans[,inputs_num])),training_trans[,c(inputs_bin,target)])
+training_normalized$TARGET_FLAG <- training_normalized$TARGET_FLAG==1
 
 ggplot(melt(training_normalized, measure.vars = inputs_num),
        aes(x=variable,y=value)
@@ -273,10 +276,8 @@ ggplot(melt(training_normalized, measure.vars = inputs_num),
     coord_flip()+
   labs(title="Boxplot of Target Flag ~ Numerical Predictors", y="Normalized Values", x="Predictor")
 
-require(dplyr)
-molten <- melt(training_normalized[,c(inputs_bin,target_bin)], measure.vars = inputs_bin)
 bin_summary <- melt(training_normalized[,c(inputs_bin,target_bin)], measure.vars = inputs_bin) %>%
-  group_by(variable,TARGET_FLAG) %>%
+  group_by(TARGET_FLAG,variable) %>%
   summarise(pct = sum(value)/length(value))
 
 ggplot(bin_summary, aes(variable, pct)) +   
@@ -305,22 +306,82 @@ kable(summary_by_target[order(-summary_by_target$delta),])
 
 
 
+# Numerical target variable - Cost of Car Crash
+
+For our descriptive stats & intuitive understanding, let's discretize the car crash into Above / Below median cost
+
+```{r}
+
+#require("reshape2")
+#require("ggplot2")
+#detach(package:plyr)
+#require("dplyr")
+
+# Let's melt the DF so that we can plot it more easily
+training_normalized<-training_normalized[training_normalized$TARGET_FLAG,]
+
+training_normalized$TARGET_FLAG <- training_normalized$TARGET_AMT > median(training_normalized$TARGET_AMT)
+
+ggplot(melt(training_normalized, measure.vars = inputs_num),
+       aes(x=variable,y=value)
+       )+
+    geom_boxplot(aes(fill = factor(TARGET_FLAG)))+
+  guides(fill=guide_legend(title="Cost of Car Crash Above Median")) +
+   theme(legend.position="bottom")+
+    coord_flip()+
+  labs(title="Boxplot of Cost of Car Crash Above Median ~ Numerical Predictors", y="Normalized Values", x="Predictor")
+
+bin_summary <- melt(training_normalized[,c(inputs_bin,target_bin)], measure.vars = inputs_bin) %>%
+  group_by(TARGET_FLAG,variable) %>%
+  summarise(pct = sum(value)/length(value))
+
+ggplot(bin_summary, aes(variable, pct)) +   
+  geom_bar(aes(fill = TARGET_FLAG), position = "dodge", stat="identity")+
+  guides(fill=guide_legend(title="Cost of Car Crash Above Median")) +
+   theme(legend.position="bottom")+
+    coord_flip()+
+  labs(title="Boxplot of Cost of Car Crash Above Median ~ Binary Predictors", y="Percent", x="Predictor")
+
+
+```
+
+possible correlations
+
+```{r}
+
+
+summary_positive <- describe(training_normalized[training_normalized$TARGET_FLAG==1,c(target_bin,inputs)])[,c("mean","n")]
+summary_negative <- describe(training_normalized[training_normalized$TARGET_FLAG==0,c(target_bin,inputs)])[,c("mean","n")]
+summary_by_target <- merge(summary_positive,summary_negative,by="row.names")
+colnames(summary_by_target) <- c("Variable","Above Median Cost of Crash - Avg","Above Median Cost of Crash - n","Below Median Cost of Crash - Avg", "Below Median Cost of Crash - n")
+summary_by_target$delta <- abs(summary_by_target[,"Above Median Cost of Crash - Avg"]-summary_by_target[,"Below Median Cost of Crash - Avg"])
+
+kable(summary_by_target[order(-summary_by_target$delta),])
+
+```
+
+
 ## TRAINIG DATASETS
 
-split the dataset into training and testing
+Let's split the dataset into training and testing so that we end up with two datasets:
+
+* for logistic regression (training_flag, testing_flag)
+* for linear regression (training_num, testing_num)
 
 #```{r}
-
+library(BalancedSampling)
 
 ## 75% of the sample size
-smp_size <- floor(0.75 * nrow(transformed))
+smp_size <- floor(0.75 * nrow(training_trans))
+
+training_trans$TARGET_FLAG
 
 ## set the seed to make your partition reproductible
 set.seed(123)
 train_ind <- c(sample(seq_len(nrow(transformed[transformed$target==1,])), size = smp_size/2),sample(seq_len(nrow(transformed[transformed$target==0,])), size = smp_size/2))
 
-train <- transformed[train_ind, ]
-test <- transformed[-train_ind, ]
+training_flag <- transformed[train_ind, ]
+testing_flag <- transformed[-train_ind, ]
 ```
 
 
