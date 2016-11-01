@@ -24,9 +24,9 @@ require("knitr")
 require("psych")
 # Let's load the data
 
-training <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw04/insurance_training_data.csv'))
+training <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw04/insurance_training_data.csv'),stringsAsFactors = FALSE)
 metadata <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw04/insurance-metadata.csv'))
-evaluation <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw04/insurance-evaluation-data.csv'))
+evaluation <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw04/insurance-evaluation-data.csv'),stringsAsFactors = FALSE)
 
 kable(metadata)
 columns <- colnames(training)
@@ -46,6 +46,8 @@ summary(training)
 
 ## 2. DATA PREPARATION (25 Points)
 
+### Data Transformations
+
 Based on the dataset description we need to:
 
  * Convert INCOME to numeric, replace 0 for NA
@@ -62,8 +64,9 @@ Based on the dataset description we need to:
  * Convert OLDCLAIM to numeric   
  * Convert REVOKED to flag (1/0)
  * Convert URBANICITY to flag (1/0 IS_URBAN)
- * Cap numerical values to their 5/95 percentiles
- * Fill missing values with mean for: AGE, YOJ, CAR_AGE
+ 
+ As a convention, all binary variables will be prefixed with "_BIN"
+
  
 ```{r}
 
@@ -73,7 +76,7 @@ parseStringValue <- function(v, zeroToNa){
 }
 
 transform <- function(d){
-  outputCols<- c("TARGET_FLAG","TARGET_AMT","AGE", "YOJ", "CAR_AGE","KIDSDRIV","HOMEKIDS","TRAVTIME","TIF","CLM_FREQ","MVR_PTS","CAR_AGE")
+  outputCols<- c("TARGET_FLAG","TARGET_AMT","AGE", "YOJ", "CAR_AGE","KIDSDRIV","HOMEKIDS","TRAVTIME","TIF","CLM_FREQ","MVR_PTS")
   
 
   #* Convert INCOME to numeric, replace 0 for NA
@@ -81,43 +84,44 @@ transform <- function(d){
   outputCols <- c(outputCols,'INCOME')
  
   #* Convert PARENT1 to flag (1/0)
-  d['PARENT1'] <- if (d['PARENT1']=="Yes") {1} else {0}
+  d['PARENT1_BIN'] <- if (d['PARENT1']=="Yes") {1} else {0}
+  outputCols <- c(outputCols,'PARENT1_BIN')
 
   #* Convert HOME_VAL to NON_HOMEOWNER flag
-  d['NON_HOMEOWNER'] <- if (is.na(parseStringValue(d['HOME_VAL'],TRUE))) {1} else {0}
-  outputCols <- c(outputCols,'NON_HOMEOWNER')
+  d['NON_HOMEOWNER_BIN'] <- if (is.na(parseStringValue(d['HOME_VAL'],TRUE))) {1} else {0}
+  outputCols <- c(outputCols,'NON_HOMEOWNER_BIN')
   
   #* Convert MSTATUS to Flag  IS_SINGLE (1/0
   #levels(training$MSTATUS)
-  d['IS_SINGLE'] <- if (d['MSTATUS']=="z_No") {1} else {0}
-  outputCols <- c(outputCols,'IS_SINGLE')
+  d['IS_SINGLE_BIN'] <- if (d['MSTATUS']=="z_No") {1} else {0}
+  outputCols <- c(outputCols,'IS_SINGLE_BIN')
 
   #* Convert SEX to Flag (IS_MALE)
-  d['IS_MALE'] <- if (d['SEX']=="M") {1} else {0}
-  outputCols <- c(outputCols,'IS_MALE')
+  d['IS_MALE_BIN'] <- if (d['SEX']=="M") {1} else {0}
+  outputCols <- c(outputCols,'IS_MALE_BIN')
   
   #* Breakout EDUCATION into ED_HS, ED_BACHELORS,ED_MASTERS, ED_PHD
-  d['ED_HS'] <- if (d['EDUCATION']=="z_High School") {1} else {0}
-  d['ED_BACHELORS'] <- if (d['EDUCATION']=="Bachelors") {1} else {0}
-  d['ED_MASTERS'] <- if (d['EDUCATION']=="Masters") {1} else {0}
-  d['ED_PHD'] <- if (d['EDUCATION']=="PhD") {1} else {0}
-  outputCols <- c(outputCols,'ED_HS','ED_BACHELORS','ED_MASTERS','ED_PHD')
+  d['ED_HS_BIN'] <- if (d['EDUCATION']=="z_High School") {1} else {0}
+  d['ED_BACHELORS_BIN'] <- if (d['EDUCATION']=="Bachelors") {1} else {0}
+  d['ED_MASTERS_BIN'] <- if (d['EDUCATION']=="Masters") {1} else {0}
+  d['ED_PHD_BIN'] <- if (d['EDUCATION']=="PhD") {1} else {0}
+  outputCols <- c(outputCols,'ED_HS_BIN','ED_BACHELORS_BIN','ED_MASTERS_BIN','ED_PHD_BIN')
 
   #* Breakout JOB into JOB_BLUE_COLLAR, JOB_CLERICAL, JOB_PROFESSIONAL, JOB_MANAGERIAL, JOB_LAWYER, JOB_STUDENT, JOB_DOCTOR, JOB_HOME_MAKER
-  d['JOB_BLUE_COLLAR'] <- if (d['JOB']=="z_Blue Collar") {1} else {0}
-  d['JOB_CLERICAL'] <- if (d['JOB']=="Clerical") {1} else {0}
-  d['JOB_PROFESSIONAL'] <- if (d['JOB']=="Professional") {1} else {0}
-  d['JOB_MANAGERIAL'] <- if (d['JOB']=="Manager") {1} else {0}
-  d['JOB_LAWYER'] <- if (d['JOB']=="Lawyer") {1} else {0}
-  d['JOB_STUDENT'] <- if (d['JOB']=="Student") {1} else {0}
-  d['JOB_DOCTOR'] <- if (d['JOB']=="Doctor") {1} else {0}
-  d['JOB_HOME_MAKER'] <- if (d['JOB']=="Home Maker") {1} else {0}
-  outputCols <- c(outputCols,'JOB_BLUE_COLLAR', 'JOB_CLERICAL', 'JOB_PROFESSIONAL', 'JOB_MANAGERIAL', 'JOB_LAWYER', 'JOB_STUDENT', 'JOB_DOCTOR', 'JOB_HOME_MAKER')
+  d['JOB_BLUE_COLLAR_BIN'] <- if (d['JOB']=="z_Blue Collar") {1} else {0}
+  d['JOB_CLERICAL_BIN'] <- if (d['JOB']=="Clerical") {1} else {0}
+  d['JOB_PROFESSIONAL_BIN'] <- if (d['JOB']=="Professional") {1} else {0}
+  d['JOB_MANAGERIAL_BIN'] <- if (d['JOB']=="Manager") {1} else {0}
+  d['JOB_LAWYER_BIN'] <- if (d['JOB']=="Lawyer") {1} else {0}
+  d['JOB_STUDENT_BIN'] <- if (d['JOB']=="Student") {1} else {0}
+  d['JOB_DOCTOR_BIN'] <- if (d['JOB']=="Doctor") {1} else {0}
+  d['JOB_HOME_MAKER_BIN'] <- if (d['JOB']=="Home Maker") {1} else {0}
+  outputCols <- c(outputCols,'JOB_BLUE_COLLAR_BIN', 'JOB_CLERICAL_BIN', 'JOB_PROFESSIONAL_BIN', 'JOB_MANAGERIAL_BIN', 'JOB_LAWYER_BIN', 'JOB_STUDENT_BIN', 'JOB_DOCTOR_BIN', 'JOB_HOME_MAKER_BIN')
 
   #* Convert CAR_USE to flat(1/0 IS_COMMERCIAL)
   #levels(training$CAR_USE)
-  d['IS_COMMERCIAL'] <- if (d['CAR_USE']=="Commercial") {1} else {0}
-  outputCols <- c(outputCols,'IS_COMMERCIAL')
+  d['IS_COMMERCIAL_BIN'] <- if (d['CAR_USE']=="Commercial") {1} else {0}
+  outputCols <- c(outputCols,'IS_COMMERCIAL_BIN')
   
   
   #* Convert BLUEBOOK to numeric
@@ -126,17 +130,17 @@ transform <- function(d){
 
   #* Breakout CAR_TYPE into: CAR_PANEL_TRUCK,CAR_PICKUP,CAR_SPORTS_CAR,CAR_VAN,CAR_SUV
   #levels(training$CAR_TYPE)
-  d['CAR_PANEL_TRUCK'] <- if (d['CAR_TYPE']=="Panel Truck") {1} else {0}
-  d['CAR_PICKUP'] <- if (d['CAR_TYPE']=="Pickup") {1} else {0}
-  d['CAR_SPORTS_CAR'] <- if (d['CAR_TYPE']=="Sports Car") {1} else {0}
-  d['CAR_VAN'] <- if (d['CAR_TYPE']=="Van") {1} else {0}
-  d['CAR_SUV'] <- if (d['CAR_TYPE']=="z_SUV") {1} else {0}
-  outputCols <- c(outputCols,'CAR_PANEL_TRUCK','CAR_PICKUP','CAR_SPORTS_CAR','CAR_VAN','CAR_SUV')
+  d['CAR_PANEL_TRUCK_BIN'] <- if (d['CAR_TYPE']=="Panel Truck") {1} else {0}
+  d['CAR_PICKUP_BIN'] <- if (d['CAR_TYPE']=="Pickup") {1} else {0}
+  d['CAR_SPORTS_CAR_BIN'] <- if (d['CAR_TYPE']=="Sports Car") {1} else {0}
+  d['CAR_VAN_BIN'] <- if (d['CAR_TYPE']=="Van") {1} else {0}
+  d['CAR_SUV_BIN'] <- if (d['CAR_TYPE']=="z_SUV") {1} else {0}
+  outputCols <- c(outputCols,'CAR_PANEL_TRUCK_BIN','CAR_PICKUP_BIN','CAR_SPORTS_CAR_BIN','CAR_VAN_BIN','CAR_SUV_BIN')
 
   #* Convert RED_CAR to flag (1/0)
   #levels(training$RED_CAR)
-  d['RED_CAR'] <- if (d['RED_CAR']=="yes") {1} else {0}
-  outputCols <- c(outputCols,'RED_CAR')
+  d['RED_CAR_BIN'] <- if (d['RED_CAR']=="yes") {1} else {0}
+  outputCols <- c(outputCols,'RED_CAR_BIN')
   
   #* Convert OLDCLAIM to numeric
   #levels(training$OLDCLAIM)
@@ -145,18 +149,20 @@ transform <- function(d){
   
   #* Convert REVOKED to flag (1/0)
   #levels(training$REVOKED)
-  d['REVOKED'] <- if (d['REVOKED']=="Yes") {1} else {0}
-  outputCols <- c(outputCols,'REVOKED')
+  d['REVOKED_BIN'] <- if (d['REVOKED']=="Yes") {1} else {0}
+  outputCols <- c(outputCols,'REVOKED_BIN')
   
   #* Convert URBANICITY to flag (1/0 IS_URBAN)
   #levels(training$URBANICITY)
-  d['IS_URBAN'] <- if (d['URBANICITY']=="Highly Urban/ Urban") {1} else {0}
-  outputCols <- c(outputCols,'IS_URBAN')
+  d['IS_URBAN_BIN'] <- if (d['URBANICITY']=="Highly Urban/ Urban") {1} else {0}
+  outputCols <- c(outputCols,'IS_URBAN_BIN')
   
    
-  d[outputCols]
-
+  r <- as.numeric(d[outputCols])
+  names(r) <- outputCols
+  r
 }
+
 training_trans<-data.frame(t(rbind(apply(training,1,transform))))
 evaluation_trans<-data.frame(t(rbind(apply(evaluation,1,transform))))
 
@@ -166,8 +172,9 @@ evaluation_trans<-data.frame(t(rbind(apply(evaluation,1,transform))))
 
 columns <- colnames(training_trans)
 target <- c("TARGET_FLAG","TARGET_AMT")
-inputs <- columns[!columns %in% c(target,"INDEX")]
-
+inputs_bin <- columns[grep("_BIN",columns)]
+inputs_num <- columns[!columns %in% c(target,"INDEX",inputs_bin)]
+inputs<- c(inputs_bin,inputs_num)
 
 summary <- describe(training_trans[,c(target,inputs)])[,c("n","mean","sd","median","min","max")]
 summary$completeness <- summary$n/nrow(training_trans)
@@ -184,32 +191,58 @@ summary(training_trans)
 
 ```
 
-# <----- I'M DOWN TO HERE.... MA
+### Data Imputations/ Capping
+
+ * Fill missing nummerical values with mean for: AGE, YOJ, CAR_AGE, INCOME
+ * Impute missing OLDCLAIM with zeros
+ * Cap numerical values to their 5/95 percentiles, with a floor of zero
 
 
 ```{r}
 
-transformed <- training
+# impute
 
-cap <- function(x){
-    quantiles <- c( qnorm(0.05,mean(x),sd(x)), qnorm(0.95,mean(x),sd(x)) )
+impute <- function (d) {
+  d[is.na(d$AGE),]$AGE <- mean(d$AGE,na.rm = TRUE)
+  d[is.na(d$YOJ),]$YOJ <- mean(d$YOJ,na.rm = TRUE)
+  d[is.na(d$CAR_AGE),]$CAR_AGE <- mean(d$CAR_AGE,na.rm = TRUE)
+  d[is.na(d$INCOME),]$INCOME <- mean(d$INCOME,na.rm = TRUE)
+  d[is.na(d$OLDCLAIM),]$OLDCLAIM <- 0
+  d
+}
+
+
+training_trans<-impute(training_trans)
+evaluation_trans<-impute(evaluation_trans)
+
+
+# Cap values
+
+# calculate transformation parameters
+
+mean_sd <- function(x){
+  c( qnorm(0.05,mean(x),sd(x)), qnorm(0.95,mean(x),sd(x)) )
+}
+
+trans_params<-data.frame(apply( training_trans[,inputs_num],2, mean_sd))
+
+capColumn <- function(col,d){
+    quantiles <- trans_params[,col]
+    x <- d[,col]
     x[ x < quantiles[1] ] <- max(0,quantiles[1])
     x[ x > quantiles[2] ] <- quantiles[2]
     x
 }
 
-#transformed$black <- log(transformed$black)
-transformed<-data.frame(apply( transformed[,inputs],2, cap),target=transformed$target)
+
+
+training_trans <- data.frame(sapply(inputs_num,function(x){capColumn(x,training_trans)}))
+evaluation_trans <- data.frame(sapply(inputs_num,function(x){capColumn(x,evaluation_trans)}))
 
 
 ```
 
-### Dealing with Missing data
 
-``` 
-training<-training[complete.cases(training),]
-
-```
 
 b. Bar Chart or Box Plot of the data
 
