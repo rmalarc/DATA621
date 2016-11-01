@@ -34,7 +34,7 @@ target <- "TARGET_FLAG"
 inputs <- columns[!columns %in% c(target,"INDEX")]
 
 
-summary <- describe(training[,c(target,inputs)])[,c("n","mean","sd","median","min","max")]
+summary <- describe(training[,c(target,inputs)],na.rm = TRUE)[,c("n","mean","sd","median","min","max")]
 summary$completeness <- summary$n/nrow(training)
 summary$cv <- 100*summary$sd/summary$mean
 
@@ -252,7 +252,7 @@ Here's the distribution of the values for each of the variables
 
 Let's get a view of the normalized values:
 
-```{r}
+#```{r}
 require("reshape2")
 require("ggplot2")
 # Let's melt the DF so that we can plot it more easily
@@ -272,7 +272,7 @@ ggplot(melt(training_normalized, measure.vars = inputs),
 
 possible correlations
 
-```{r}
+#```{r}
 
 
 summary_positive <- describe(training_normalized[training_normalized$target==1,c(target,inputs)])[,c("mean","n")]
@@ -290,7 +290,7 @@ kable(merge(metadata,summary_by_target)[order(-summary_by_target$delta),])
 
 split the dataset into training and testing
 
-```{r}
+#```{r}
 
 
 ## 75% of the sample size
@@ -306,7 +306,7 @@ test <- transformed[-train_ind, ]
 
 
 
-```{r}
+#```{r}
 
 model <- glm(I(target)~.,data=train,family = binomial)
 
@@ -335,7 +335,7 @@ Using the training data, build at least three different binary logistic regressi
 
 Be sure to explain how you can make inferences from the model, as well as discuss other relevant model output. Discuss the coefficients in the models, do they make sense? Are you keeping the model even though it is counter intuitive? Why? The boss needs to know.
 
-```{r}
+#```{r}
 valid_data <- transformed
 predictors <- inputs[!inputs %in% c("indus","chas","lstat","rm","black","zn")]
 
@@ -359,7 +359,7 @@ table(test$target,ifelse(predicted>0.5,1,0))
 ```
 
 
-```{r}
+#```{r}
 
 d<- data.frame(class=test$target,scored.class=ifelse(predicted>0.5,1,0))
 
@@ -423,7 +423,7 @@ For the binary logistic regression model, will you use a metric such as log like
 
 # Predictions
 
-```{r}
+#```{r}
 
 mean_sd <- function(x){
   c( qnorm(0.05,mean(x),sd(x)), qnorm(0.95,mean(x),sd(x)) )
