@@ -171,7 +171,9 @@ evaluation_trans<-data.frame(t(rbind(apply(evaluation,1,transform))))
 
 
 columns <- colnames(training_trans)
-target <- c("TARGET_FLAG","TARGET_AMT")
+target_bin <- c("TARGET_FLAG")
+target_lm <- c("TARGET_AMT")
+target <- c(target_bin,target_lm)
 inputs_bin <- columns[grep("_BIN",columns)]
 inputs_num <- columns[!columns %in% c(target,"INDEX",inputs_bin)]
 inputs<- c(inputs_bin,inputs_num)
@@ -236,8 +238,8 @@ capColumn <- function(col,d){
 
 
 
-training_trans <- data.frame(sapply(inputs_num,function(x){capColumn(x,training_trans)}))
-evaluation_trans <- data.frame(sapply(inputs_num,function(x){capColumn(x,evaluation_trans)}))
+training_trans <- cbind(data.frame(sapply(inputs_num,function(x){capColumn(x,training_trans)})),training_trans[,c(inputs_bin,target)])
+evaluation_trans <- cbind(data.frame(sapply(inputs_num,function(x){capColumn(x,evaluation_trans)})),evaluation_trans[,c(inputs_bin)])
 
 
 ```
@@ -252,36 +254,41 @@ Here's the distribution of the values for each of the variables
 
 Let's get a view of the normalized values:
 
-#```{r}
+# Binary target variable
+
+```{r}
 require("reshape2")
 require("ggplot2")
 # Let's melt the DF so that we can plot it more easily
-training_normalized <- data.frame(scale(training[,inputs]),target=training[,target])
+training_normalized <- cbind(data.frame(scale(training_trans[,inputs_num])),training_trans[,c(inputs_bin,target_bin)])
+#training_normalized$TARGET_FLAG <- as.factor(training_normalized$TARGET_FLAG)
 
-
-ggplot(melt(training_normalized, measure.vars = inputs),
+ggplot(melt(training_normalized, measure.vars = inputs_num),
        aes(x=variable,y=value)
        )+
-    geom_boxplot(aes(fill = factor(target)))+
+    geom_boxplot(aes(fill = factor(TARGET_FLAG)))+
   guides(fill=guide_legend(title="Was Car in a crash")) +
    theme(legend.position="bottom")+
     coord_flip()+
-  labs(title="Boxplot of Target ~ Predictors", y="Normalized Values", x="Predictor")
+  labs(title="Boxplot of Target ~ Numerical Predictors", y="Normalized Values", x="Predictor")
+
+
 
 ```
 
 possible correlations
 
-#```{r}
+```{r}
 
 
-summary_positive <- describe(training_normalized[training_normalized$target==1,c(target,inputs)])[,c("mean","n")]
-summary_negative <- describe(training_normalized[training_normalized$target==0,c(target,inputs)])[,c("mean","n")]
+summary_positive <- describe(training_normalized[training_normalized$TARGET_FLAG==1,c(target_bin,inputs)])[,c("mean","n")]
+summary_negative <- describe(training_normalized[training_normalized$TARGET_FLAG==0,c(target_bin,inputs)])[,c("mean","n")]
 summary_by_target <- merge(summary_positive,summary_negative,by="row.names")
 colnames(summary_by_target) <- c("Variable","In car crash - Avg","In car crash - n","NOT In car crash - Avg", "NOT In car crash - n")
 summary_by_target$delta <- abs(summary_by_target[,"In car crash - Avg"]-summary_by_target[,"NOT In car crash - Avg"])
 
 kable(merge(metadata,summary_by_target)[order(-summary_by_target$delta),])
+
 ```
 
 

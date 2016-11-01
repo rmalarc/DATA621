@@ -907,7 +907,9 @@ evaluation_trans&lt;-data.frame(t(rbind(apply(evaluation,1,transform))))
 
 
 columns &lt;- colnames(training_trans)
-target &lt;- c(&quot;TARGET_FLAG&quot;,&quot;TARGET_AMT&quot;)
+target_bin &lt;- c(&quot;TARGET_FLAG&quot;)
+target_lm &lt;- c(&quot;TARGET_AMT&quot;)
+target &lt;- c(target_bin,target_lm)
 inputs_bin &lt;- columns[grep(&quot;_BIN&quot;,columns)]
 inputs_num &lt;- columns[!columns %in% c(target,&quot;INDEX&quot;,inputs_bin)]
 inputs&lt;- c(inputs_bin,inputs_num)
@@ -1547,8 +1549,8 @@ capColumn &lt;- function(col,d){
 
 
 
-training_trans &lt;- data.frame(sapply(inputs_num,function(x){capColumn(x,training_trans)}))
-evaluation_trans &lt;- data.frame(sapply(inputs_num,function(x){capColumn(x,evaluation_trans)}))</code></pre>
+training_trans &lt;- cbind(data.frame(sapply(inputs_num,function(x){capColumn(x,training_trans)})),training_trans[,c(inputs_bin,target)])
+evaluation_trans &lt;- cbind(data.frame(sapply(inputs_num,function(x){capColumn(x,evaluation_trans)})),evaluation_trans[,c(inputs_bin)])</code></pre>
 <ol start="2" style="list-style-type: lower-alpha">
 <li>Bar Chart or Box Plot of the data</li>
 </ol>
@@ -1559,29 +1561,518 @@ evaluation_trans &lt;- data.frame(sapply(inputs_num,function(x){capColumn(x,eval
 <p>Let’s get a view of the normalized values:</p>
 </div>
 </div>
-<div id="r" class="section level1">
-<h1>```{r}</h1>
-<p>require(“reshape2”) require(“ggplot2”) # Let’s melt the DF so that we can plot it more easily training_normalized &lt;- data.frame(scale(training[,inputs]),target=training[,target])</p>
-<p>ggplot(melt(training_normalized, measure.vars = inputs), aes(x=variable,y=value) )+ geom_boxplot(aes(fill = factor(target)))+ guides(fill=guide_legend(title=“Was Car in a crash”)) + theme(legend.position=“bottom”)+ coord_flip()+ labs(title=“Boxplot of Target ~ Predictors”, y=“Normalized Values”, x=“Predictor”)</p>
-<pre><code>
-possible correlations
+<div id="binary-target-variable" class="section level1">
+<h1>Binary target variable</h1>
+<pre class="r"><code>require(&quot;reshape2&quot;)</code></pre>
+<pre><code>## Loading required package: reshape2</code></pre>
+<pre class="r"><code>require(&quot;ggplot2&quot;)</code></pre>
+<pre><code>## Loading required package: ggplot2</code></pre>
+<pre><code>## 
+## Attaching package: 'ggplot2'</code></pre>
+<pre><code>## The following objects are masked from 'package:psych':
+## 
+##     %+%, alpha</code></pre>
+<pre class="r"><code># Let's melt the DF so that we can plot it more easily
+training_normalized &lt;- cbind(data.frame(scale(training_trans[,inputs_num])),training_trans[,c(inputs_bin,target_bin)])
+#training_normalized$TARGET_FLAG &lt;- as.factor(training_normalized$TARGET_FLAG)
 
-#```{r}
-
-
-summary_positive &lt;- describe(training_normalized[training_normalized$target==1,c(target,inputs)])[,c(&quot;mean&quot;,&quot;n&quot;)]
-summary_negative &lt;- describe(training_normalized[training_normalized$target==0,c(target,inputs)])[,c(&quot;mean&quot;,&quot;n&quot;)]
+ggplot(melt(training_normalized, measure.vars = inputs_num),
+       aes(x=variable,y=value)
+       )+
+    geom_boxplot(aes(fill = factor(TARGET_FLAG)))+
+  guides(fill=guide_legend(title=&quot;Was Car in a crash&quot;)) +
+   theme(legend.position=&quot;bottom&quot;)+
+    coord_flip()+
+  labs(title=&quot;Boxplot of Target ~ Numerical Predictors&quot;, y=&quot;Normalized Values&quot;, x=&quot;Predictor&quot;)</code></pre>
+<p><img src="data:image/png;base64,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" width="672" /></p>
+<p>possible correlations</p>
+<pre class="r"><code>summary_positive &lt;- describe(training_normalized[training_normalized$TARGET_FLAG==1,c(target_bin,inputs)])[,c(&quot;mean&quot;,&quot;n&quot;)]
+summary_negative &lt;- describe(training_normalized[training_normalized$TARGET_FLAG==0,c(target_bin,inputs)])[,c(&quot;mean&quot;,&quot;n&quot;)]
 summary_by_target &lt;- merge(summary_positive,summary_negative,by=&quot;row.names&quot;)
 colnames(summary_by_target) &lt;- c(&quot;Variable&quot;,&quot;In car crash - Avg&quot;,&quot;In car crash - n&quot;,&quot;NOT In car crash - Avg&quot;, &quot;NOT In car crash - n&quot;)
 summary_by_target$delta &lt;- abs(summary_by_target[,&quot;In car crash - Avg&quot;]-summary_by_target[,&quot;NOT In car crash - Avg&quot;])
 
 kable(merge(metadata,summary_by_target)[order(-summary_by_target$delta),])</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left"></th>
+<th align="left">VARIABLE</th>
+<th align="left">NAME.DEFINITION</th>
+<th align="left">THEORETICAL.EFFECT</th>
+<th align="left">Variable</th>
+<th align="right">In car crash - Avg</th>
+<th align="right">In car crash - n</th>
+<th align="right">NOT In car crash - Avg</th>
+<th align="right">NOT In car crash - n</th>
+<th align="right">delta</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">35</td>
+<td align="left">CLM_FREQ</td>
+<td align="left"># Claims (Past 5 Years)</td>
+<td align="left">The more claims you filed in the past, the more you are likely to file in the future</td>
+<td align="left">BLUEBOOK</td>
+<td align="right">-0.1854357</td>
+<td align="right">2153</td>
+<td align="right">0.0664519</td>
+<td align="right">6008</td>
+<td align="right">0.2518876</td>
+</tr>
+<tr class="even">
+<td align="left">9</td>
+<td align="left">CLM_FREQ</td>
+<td align="left"># Claims (Past 5 Years)</td>
+<td align="left">The more claims you filed in the past, the more you are likely to file in the future</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="odd">
+<td align="left">29</td>
+<td align="left">TARGET_AMT</td>
+<td align="left">If car was in a crash, what was the cost</td>
+<td align="left">None</td>
+<td align="left">BLUEBOOK</td>
+<td align="right">-0.1854357</td>
+<td align="right">2153</td>
+<td align="right">0.0664519</td>
+<td align="right">6008</td>
+<td align="right">0.2518876</td>
+</tr>
+<tr class="even">
+<td align="left">31</td>
+<td align="left">BLUEBOOK</td>
+<td align="left">Value of Vehicle</td>
+<td align="left">Unknown effect on probability of collision, but probably effect the payout if there is a crash</td>
+<td align="left">BLUEBOOK</td>
+<td align="right">-0.1854357</td>
+<td align="right">2153</td>
+<td align="right">0.0664519</td>
+<td align="right">6008</td>
+<td align="right">0.2518876</td>
+</tr>
+<tr class="odd">
+<td align="left">14</td>
+<td align="left">JOB</td>
+<td align="left">Job Category</td>
+<td align="left">In theory, white collar jobs tend to be safer</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="even">
+<td align="left">15</td>
+<td align="left">KIDSDRIV</td>
+<td align="left"># Driving Children</td>
+<td align="left">When teenagers drive your car, you are more likely to get into crashes</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="odd">
+<td align="left">2</td>
+<td align="left">TARGET_FLAG</td>
+<td align="left">Was Car in a crash? 1=YES 0=NO</td>
+<td align="left">None</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="even">
+<td align="left">28</td>
+<td align="left">TARGET_FLAG</td>
+<td align="left">Was Car in a crash? 1=YES 0=NO</td>
+<td align="left">None</td>
+<td align="left">BLUEBOOK</td>
+<td align="right">-0.1854357</td>
+<td align="right">2153</td>
+<td align="right">0.0664519</td>
+<td align="right">6008</td>
+<td align="right">0.2518876</td>
+</tr>
+<tr class="odd">
+<td align="left">1</td>
+<td align="left">INDEX</td>
+<td align="left">Identification Variable (do not use)</td>
+<td align="left">None</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="even">
+<td align="left">3</td>
+<td align="left">TARGET_AMT</td>
+<td align="left">If car was in a crash, what was the cost</td>
+<td align="left">None</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="odd">
+<td align="left">19</td>
+<td align="left">PARENT1</td>
+<td align="left">Single Parent</td>
+<td align="left">Unknown effect</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="even">
+<td align="left">36</td>
+<td align="left">EDUCATION</td>
+<td align="left">Max Education Level</td>
+<td align="left">Unknown effect, but in theory more educated people tend to drive more safely</td>
+<td align="left">BLUEBOOK</td>
+<td align="right">-0.1854357</td>
+<td align="right">2153</td>
+<td align="right">0.0664519</td>
+<td align="right">6008</td>
+<td align="right">0.2518876</td>
+</tr>
+<tr class="odd">
+<td align="left">16</td>
+<td align="left">MSTATUS</td>
+<td align="left">Marital Status</td>
+<td align="left">In theory, married people drive more safely</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="even">
+<td align="left">30</td>
+<td align="left">AGE</td>
+<td align="left">Age of Driver</td>
+<td align="left">Very young people tend to be risky. Maybe very old people also.</td>
+<td align="left">BLUEBOOK</td>
+<td align="right">-0.1854357</td>
+<td align="right">2153</td>
+<td align="right">0.0664519</td>
+<td align="right">6008</td>
+<td align="right">0.2518876</td>
+</tr>
+<tr class="odd">
+<td align="left">18</td>
+<td align="left">OLDCLAIM</td>
+<td align="left">Total Claims (Past 5 Years)</td>
+<td align="left">If your total payout over the past five years was high, this suggests future payouts will be high</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="even">
+<td align="left">38</td>
+<td align="left">HOME_VAL</td>
+<td align="left">Home Value</td>
+<td align="left">In theory, home owners tend to drive more responsibly</td>
+<td align="left">BLUEBOOK</td>
+<td align="right">-0.1854357</td>
+<td align="right">2153</td>
+<td align="right">0.0664519</td>
+<td align="right">6008</td>
+<td align="right">0.2518876</td>
+</tr>
+<tr class="odd">
+<td align="left">37</td>
+<td align="left">HOMEKIDS</td>
+<td align="left"># Children at Home</td>
+<td align="left">Unknown effect</td>
+<td align="left">BLUEBOOK</td>
+<td align="right">-0.1854357</td>
+<td align="right">2153</td>
+<td align="right">0.0664519</td>
+<td align="right">6008</td>
+<td align="right">0.2518876</td>
+</tr>
+<tr class="even">
+<td align="left">32</td>
+<td align="left">CAR_AGE</td>
+<td align="left">Vehicle Age</td>
+<td align="left">Unknown effect on probability of collision, but probably effect the payout if there is a crash</td>
+<td align="left">BLUEBOOK</td>
+<td align="right">-0.1854357</td>
+<td align="right">2153</td>
+<td align="right">0.0664519</td>
+<td align="right">6008</td>
+<td align="right">0.2518876</td>
+</tr>
+<tr class="odd">
+<td align="left">34</td>
+<td align="left">CAR_USE</td>
+<td align="left">Vehicle Use</td>
+<td align="left">Commercial vehicles are driven more, so might increase probability of collision</td>
+<td align="left">BLUEBOOK</td>
+<td align="right">-0.1854357</td>
+<td align="right">2153</td>
+<td align="right">0.0664519</td>
+<td align="right">6008</td>
+<td align="right">0.2518876</td>
+</tr>
+<tr class="even">
+<td align="left">11</td>
+<td align="left">HOMEKIDS</td>
+<td align="left"># Children at Home</td>
+<td align="left">Unknown effect</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="odd">
+<td align="left">20</td>
+<td align="left">RED_CAR</td>
+<td align="left">A Red Car</td>
+<td align="left">Urban legend says that red cars (especially red sports cars) are more risky. Is that true?</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="even">
+<td align="left">25</td>
+<td align="left">URBANICITY</td>
+<td align="left">Home/Work Area</td>
+<td align="left">Unknown</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="odd">
+<td align="left">12</td>
+<td align="left">HOME_VAL</td>
+<td align="left">Home Value</td>
+<td align="left">In theory, home owners tend to drive more responsibly</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="even">
+<td align="left">27</td>
+<td align="left">INDEX</td>
+<td align="left">Identification Variable (do not use)</td>
+<td align="left">None</td>
+<td align="left">BLUEBOOK</td>
+<td align="right">-0.1854357</td>
+<td align="right">2153</td>
+<td align="right">0.0664519</td>
+<td align="right">6008</td>
+<td align="right">0.2518876</td>
+</tr>
+<tr class="odd">
+<td align="left">5</td>
+<td align="left">BLUEBOOK</td>
+<td align="left">Value of Vehicle</td>
+<td align="left">Unknown effect on probability of collision, but probably effect the payout if there is a crash</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="even">
+<td align="left">7</td>
+<td align="left">CAR_TYPE</td>
+<td align="left">Type of Car</td>
+<td align="left">Unknown effect on probability of collision, but probably effect the payout if there is a crash</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="odd">
+<td align="left">10</td>
+<td align="left">EDUCATION</td>
+<td align="left">Max Education Level</td>
+<td align="left">Unknown effect, but in theory more educated people tend to drive more safely</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="even">
+<td align="left">24</td>
+<td align="left">TRAVTIME</td>
+<td align="left">Distance to Work</td>
+<td align="left">Long drives to work usually suggest greater risk</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="odd">
+<td align="left">13</td>
+<td align="left">INCOME</td>
+<td align="left">Income</td>
+<td align="left">In theory, rich people tend to get into fewer crashes</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="even">
+<td align="left">6</td>
+<td align="left">CAR_AGE</td>
+<td align="left">Vehicle Age</td>
+<td align="left">Unknown effect on probability of collision, but probably effect the payout if there is a crash</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="odd">
+<td align="left">26</td>
+<td align="left">YOJ</td>
+<td align="left">Years on Job</td>
+<td align="left">People who stay at a job for a long time are usually more safe</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="even">
+<td align="left">17</td>
+<td align="left">MVR_PTS</td>
+<td align="left">Motor Vehicle Record Points</td>
+<td align="left">If you get lots of traffic tickets, you tend to get into more crashes</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="odd">
+<td align="left">22</td>
+<td align="left">SEX</td>
+<td align="left">Gender</td>
+<td align="left">Urban legend says that women have less crashes then men. Is that true?</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="even">
+<td align="left">21</td>
+<td align="left">REVOKED</td>
+<td align="left">License Revoked (Past 7 Years)</td>
+<td align="left">If your license was revoked in the past 7 years, you probably are a more risky driver.</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="odd">
+<td align="left">33</td>
+<td align="left">CAR_TYPE</td>
+<td align="left">Type of Car</td>
+<td align="left">Unknown effect on probability of collision, but probably effect the payout if there is a crash</td>
+<td align="left">BLUEBOOK</td>
+<td align="right">-0.1854357</td>
+<td align="right">2153</td>
+<td align="right">0.0664519</td>
+<td align="right">6008</td>
+<td align="right">0.2518876</td>
+</tr>
+<tr class="even">
+<td align="left">23</td>
+<td align="left">TIF</td>
+<td align="left">Time in Force</td>
+<td align="left">People who have been customers for a long time are usually more safe.</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="odd">
+<td align="left">8</td>
+<td align="left">CAR_USE</td>
+<td align="left">Vehicle Use</td>
+<td align="left">Commercial vehicles are driven more, so might increase probability of collision</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+<tr class="even">
+<td align="left">4</td>
+<td align="left">AGE</td>
+<td align="left">Age of Driver</td>
+<td align="left">Very young people tend to be risky. Maybe very old people also.</td>
+<td align="left">AGE</td>
+<td align="right">-0.1673899</td>
+<td align="right">2153</td>
+<td align="right">0.0599851</td>
+<td align="right">6008</td>
+<td align="right">0.2273750</td>
+</tr>
+</tbody>
+</table>
 <div id="trainig-datasets" class="section level2">
 <h2>TRAINIG DATASETS</h2>
 <p>split the dataset into training and testing</p>
 </div>
 </div>
-<div id="r-1" class="section level1">
+<div id="r" class="section level1">
 <h1>```{r}</h1>
 <div id="of-the-sample-size" class="section level2">
 <h2>75% of the sample size</h2>
@@ -1617,7 +2108,7 @@ table(ifelse(test$target&gt;0.5,1,0),ifelse(predicted&gt;0.5,1,0))
 <p>Be sure to explain how you can make inferences from the model, as well as discuss other relevant model output. Discuss the coefficients in the models, do they make sense? Are you keeping the model even though it is counter intuitive? Why? The boss needs to know.</p>
 </div>
 </div>
-<div id="r-2" class="section level1">
+<div id="r-1" class="section level1">
 <h1>```{r}</h1>
 <p>valid_data &lt;- transformed predictors &lt;- inputs[!inputs %in% c(“indus”,“chas”,“lstat”,“rm”,“black”,“zn”)]</p>
 <p>model &lt;- glm(I(target)~.,data=train[,c(predictors,target)],family = binomial)</p>
@@ -1689,7 +2180,7 @@ f1_score(d)
 <div id="predictions" class="section level1">
 <h1>Predictions</h1>
 </div>
-<div id="r-3" class="section level1">
+<div id="r-2" class="section level1">
 <h1>```{r}</h1>
 <p>mean_sd &lt;- function(x){ c( qnorm(0.05,mean(x),sd(x)), qnorm(0.95,mean(x),sd(x)) ) }</p>
 <p>trans_params&lt;-data.frame(apply( transformed[,inputs],2, mean_sd))</p>
