@@ -26,6 +26,7 @@ require("psych")
 
 training <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw04/insurance_training_data.csv'),stringsAsFactors = FALSE)
 metadata <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw04/insurance-metadata.csv'))
+colnames(metadata) <- c("Variable", "Name Definition", "Theoretical Effect")
 evaluation <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw04/insurance-evaluation-data.csv'),stringsAsFactors = FALSE)
 
 kable(metadata)
@@ -261,7 +262,7 @@ require("reshape2")
 require("ggplot2")
 # Let's melt the DF so that we can plot it more easily
 training_normalized <- cbind(data.frame(scale(training_trans[,inputs_num])),training_trans[,c(inputs_bin,target_bin)])
-#training_normalized$TARGET_FLAG <- as.factor(training_normalized$TARGET_FLAG)
+training_normalized$TARGET_FLAG <- as.factor(training_normalized$TARGET_FLAG)
 
 ggplot(melt(training_normalized, measure.vars = inputs_num),
        aes(x=variable,y=value)
@@ -270,9 +271,20 @@ ggplot(melt(training_normalized, measure.vars = inputs_num),
   guides(fill=guide_legend(title="Was Car in a crash")) +
    theme(legend.position="bottom")+
     coord_flip()+
-  labs(title="Boxplot of Target ~ Numerical Predictors", y="Normalized Values", x="Predictor")
+  labs(title="Boxplot of Target Flag ~ Numerical Predictors", y="Normalized Values", x="Predictor")
 
+require(dplyr)
+molten <- melt(training_normalized[,c(inputs_bin,target_bin)], measure.vars = inputs_bin)
+bin_summary <- melt(training_normalized[,c(inputs_bin,target_bin)], measure.vars = inputs_bin) %>%
+  group_by(variable,TARGET_FLAG) %>%
+  summarise(pct = sum(value)/length(value))
 
+ggplot(bin_summary, aes(variable, pct)) +   
+  geom_bar(aes(fill = TARGET_FLAG), position = "dodge", stat="identity")+
+  guides(fill=guide_legend(title="Was Car in a crash")) +
+   theme(legend.position="bottom")+
+    coord_flip()+
+  labs(title="Boxplot of Target Flag ~ Binary Predictors", y="Percent", x="Predictor")
 
 ```
 
@@ -287,7 +299,7 @@ summary_by_target <- merge(summary_positive,summary_negative,by="row.names")
 colnames(summary_by_target) <- c("Variable","In car crash - Avg","In car crash - n","NOT In car crash - Avg", "NOT In car crash - n")
 summary_by_target$delta <- abs(summary_by_target[,"In car crash - Avg"]-summary_by_target[,"NOT In car crash - Avg"])
 
-kable(merge(metadata,summary_by_target)[order(-summary_by_target$delta),])
+kable(summary_by_target[order(-summary_by_target$delta),])
 
 ```
 
