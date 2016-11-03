@@ -14,11 +14,24 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ## 1. DATA EXPLORATION (25 Points)
-Describe the size and the variables in the moneyball training data set. Consider that too much detail will cause a manager to lose interest while too little detail will make the manager consider that you aren't doing your job. Some suggestions are given below. Please do NOT treat this as a check list of things to do to complete the assignment. You should have your own thoughts on what to tell the boss. These are just ideas.
+Describe the size and the variables in the insurance training data set. Consider that too much detail will cause a
+manager to lose interest while too little detail will make the manager consider that you aren’t doing your job. Some
+suggestions are given below. Please do NOT treat this as a check list of things to do to complete the assignment.
+You should have your own thoughts on what to tell the boss. These are just ideas.
 
 a. Mean / Standard Deviation / Median
 
-```{r}
+b. Bar Chart or Box Plot of the data
+
+c. Is the data correlated to the target variable (or to other variables?)
+
+d. Are any of the variables missing and need to be imputed “fixed”?
+
+***
+
+a. Mean / Standard Deviation / Median
+
+```{r, message=FALSE, warning=FALSE}
 require("plyr")
 require("knitr")
 require("psych")
@@ -46,6 +59,18 @@ summary(training)
 ```
 
 ## 2. DATA PREPARATION (25 Points)
+
+Describe how you have transformed the data by changing the original variables or creating new variables. If you did transform the data or create new variables, discuss why you did this. Here are some possible transformations.
+
+a. Fix missing values (maybe with a Mean or Median value)
+
+b. Create flags to suggest if a variable was missing
+
+c. Transform data by putting it into buckets
+
+d. Mathematical transforms such as log or square root (or use Box-Cox)
+
+e. Combine variables (such as ratios or adding or multiplying) to create new variables
 
 ### Data Transformations
 
@@ -167,10 +192,6 @@ transform <- function(d){
 training_trans<-data.frame(t(rbind(apply(training,1,transform))))
 evaluation_trans<-data.frame(t(rbind(apply(evaluation,1,transform))))
 
-
-
-
-
 columns <- colnames(training_trans)
 target_bin <- c("TARGET_FLAG")
 target_lm <- c("TARGET_AMT")
@@ -196,15 +217,13 @@ summary(training_trans)
 
 ### Data Imputations/ Capping
 
+#### Imputations
+
  * Fill missing nummerical values with mean for: AGE, YOJ, CAR_AGE, INCOME
  * Impute missing OLDCLAIM with zeros
- * Cap numerical values to their 5/95 percentiles, with a floor of zero
-
 
 ```{r}
-
 # impute
-
 impute <- function (d) {
   d[is.na(d$AGE),]$AGE <- mean(d$AGE,na.rm = TRUE)
   d[is.na(d$YOJ),]$YOJ <- mean(d$YOJ,na.rm = TRUE)
@@ -213,58 +232,111 @@ impute <- function (d) {
   d[is.na(d$OLDCLAIM),]$OLDCLAIM <- 0
   d
 }
-
-
 training_trans<-impute(training_trans)
 evaluation_trans<-impute(evaluation_trans)
 
-
-# Cap values
-
-# calculate transformation parameters
-
-mean_sd <- function(x){
-  c( qnorm(0.025,mean(x),sd(x)), qnorm(0.975,mean(x),sd(x)) )
-}
-
-trans_params<-data.frame(apply( training_trans[,inputs_num],2, mean_sd))
-
-capColumn <- function(col,d){
-    quantiles <- trans_params[,col]
-    x <- d[,col]
-    x[ x < quantiles[1] ] <- max(0,quantiles[1])
-    x[ x > quantiles[2] ] <- quantiles[2]
-    x
-}
+```
 
 
-histColumn <- function(col,d){
-    quantiles <- trans_params[,col]
+#### Transformation Analysis Of Numerical Features
+
+##### **TARGET_FLAG**
+
+Let's see how the TARGET_FLAG and TARGET_NUM respond to each of the numerical features 
+
+
+```{r}
+
+binResponse <- function(col,d){
+#  par(mfrow=c(2,1))
     data <- d[order(d[,col]),c(col,target_bin)]
     x <- data[,col]
     y <- cumsum(data[,target_bin])/sum(data[,target_bin])
-    y_inv <- (sum(data[,target_bin])-cumsum(data[,target_bin]))/sum(data[,target_bin])
-    plot(y~x, main=col)
-    points(x,y_inv,col="red")
-    data
+    y_inverse <- (sum(data[,target_bin])-cumsum(data[,target_bin]))/sum(data[,target_bin])
+    plot(y~x, main=paste0("TARGET_FLAG ~ ",col," Response"))
+    points(x,y_inverse,col="red") # adding inverse so it gives a better visual appreciation of what's going on
+#    x <- log(data[,col])
+#    plot(y~x, main=paste0("TARGET_FLAG ~ log(",col,") Response"))
+#    points(x,y_inverse,col="red") # adding inverse so it gives a better visual appreciation of what's going on
 }
 
 
-sapply(inputs_num,function(x){histColumn(x,training_trans)})
-
-col <- "KIDSDRIV"
-    quantiles <- trans_params[,col]
-    x <- training_trans[,col]
-    hist(c(x[ x < quantiles[1] ],x[ x > quantiles[2] ]), main=col)
-training_trans <- cbind(data.frame(sapply(inputs_num,function(x){capColumn(x,training_trans)})),training_trans[,c(inputs_bin,target)])
-evaluation_trans <- cbind(data.frame(sapply(inputs_num,function(x){capColumn(x,evaluation_trans)})),evaluation_trans[,c(inputs_bin)])
+sapply(inputs_num,function(x){binResponse(x,training_trans)})
 
 
 ```
 
 
+Based on the charts above, we should discretize any variables which don't give a clear sigmoid function. See how beautiful TARGET_FLAG ~ AGE looks...., if we don't get a sigmoid off the bat, we're never going to get a good logistic regression.
 
-b. Bar Chart or Box Plot of the data
+The discretization can be tricky. I would discretize in regions where the bars are about the same size (somewhat homogenous). For instance CAR_AGE, I would do CAR_0, CAR_1, CAR_2_4, CAR_5_15, CAR_15_MORE. This is an interesting variable as it appears to be pseudo-sigmoid, with the exception where the car is 1, perhaps a lot of people have accidents past the first year
+
+I'd break HOMEKIDS into: HK_0, HK_1_3, HK_4_MORE
+
+
+##### **TARGET_NUM**
+
+```{r}
+hist(training_trans[training_trans$TARGET_FLAG==1,target_lm])
+```
+
+The distribution of values of the response target_lm suggest that we may benefit from a log tranformation on the response.
+
+Let's see what the individual plots look like:
+
+```{r}
+
+###############
+
+lmResponse <- function(col,d){
+    data <- d[order(d[,col]),c(col,target_lm)]
+    x <- data[,col]
+    y <- data[,target_lm]
+    plot(y~x, main=paste0("TARGET_LM ~ ",col," Response"))
+}
+
+
+nnn<-sapply(inputs_num,function(x){lmResponse(x,training_trans[training_trans$TARGET_FLAG==1,])})
+
+```
+
+From the charts above, I fail to see a linear response to any of the targets. Let's apply a log transformation on the target and see if it changes:
+
+
+```{r}
+
+
+
+lmResponse <- function(col,d){
+    data <- d[order(d[,col]),c(col,target_lm)]
+    x <- data[,col]
+    y <- log(data[,target_lm])
+    plot(y~x, main=paste0("log(TARGET_LM) ~ ",col," Response"))
+}
+
+
+sapply(inputs_num,function(x){lmResponse(x,training_trans[training_trans$TARGET_FLAG==1,])})
+
+```
+
+I now see a better linear pattern, we should get a better linear fit. A log transformation of the target seems adequate, aside from some negative values that need to be zeroed out, it is not evident that any outliers of the predictors may skew the linear fit. With that, no further transformations seem required. 
+
+##### **Transformations Implementation**
+
+```{r}
+
+# Cap values
+
+capColumn <- function(col,d){
+    x <- d[,col]
+    x[ x < 0 ] <- 0
+    x
+}
+
+training_trans <- cbind(data.frame(sapply(inputs_num,function(x){capColumn(x,training_trans)})),training_trans[,c(inputs_bin,target)])
+evaluation_trans <- cbind(data.frame(sapply(inputs_num,function(x){capColumn(x,evaluation_trans)})),evaluation_trans[,c(inputs_bin)])
+
+```
 
 ### How are the input values distributed?, do we need to do something about them?
 
@@ -274,7 +346,7 @@ Let's get a view of the normalized values:
 
 # Binary target variable
 
-```{r}
+```{r,warning=FALSE,message=FALSE}
 require("reshape2")
 require("ggplot2")
 detach(package:plyr)
@@ -308,9 +380,7 @@ ggplot(bin_summary, aes(variable, pct)) +
 
 possible correlations
 
-```{r}
-
-
+```{rwarning=FALSE, message=FALSE}
 summary_positive <- describe(training_normalized[training_normalized$TARGET_FLAG==1,c(target_bin,inputs)])[,c("mean","n")]
 summary_negative <- describe(training_normalized[training_normalized$TARGET_FLAG==0,c(target_bin,inputs)])[,c("mean","n")]
 summary_by_target <- merge(summary_positive,summary_negative,by="row.names")
@@ -318,7 +388,6 @@ colnames(summary_by_target) <- c("Variable","In car crash - Avg","In car crash -
 summary_by_target$delta <- abs(summary_by_target[,"In car crash - Avg"]-summary_by_target[,"NOT In car crash - Avg"])
 
 kable(summary_by_target[order(-summary_by_target$delta),])
-
 ```
 
 
