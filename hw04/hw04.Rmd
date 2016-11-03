@@ -14,11 +14,24 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ## 1. DATA EXPLORATION (25 Points)
-Describe the size and the variables in the moneyball training data set. Consider that too much detail will cause a manager to lose interest while too little detail will make the manager consider that you aren't doing your job. Some suggestions are given below. Please do NOT treat this as a check list of things to do to complete the assignment. You should have your own thoughts on what to tell the boss. These are just ideas.
+Describe the size and the variables in the insurance training data set. Consider that too much detail will cause a
+manager to lose interest while too little detail will make the manager consider that you aren’t doing your job. Some
+suggestions are given below. Please do NOT treat this as a check list of things to do to complete the assignment.
+You should have your own thoughts on what to tell the boss. These are just ideas.
 
 a. Mean / Standard Deviation / Median
 
-```{r}
+b. Bar Chart or Box Plot of the data
+
+c. Is the data correlated to the target variable (or to other variables?)
+
+d. Are any of the variables missing and need to be imputed “fixed”?
+
+***
+
+a. Mean / Standard Deviation / Median
+
+```{r, message=FALSE, warning=FALSE}
 require("plyr")
 require("knitr")
 require("psych")
@@ -46,6 +59,18 @@ summary(training)
 ```
 
 ## 2. DATA PREPARATION (25 Points)
+
+Describe how you have transformed the data by changing the original variables or creating new variables. If you did transform the data or create new variables, discuss why you did this. Here are some possible transformations.
+
+a. Fix missing values (maybe with a Mean or Median value)
+
+b. Create flags to suggest if a variable was missing
+
+c. Transform data by putting it into buckets
+
+d. Mathematical transforms such as log or square root (or use Box-Cox)
+
+e. Combine variables (such as ratios or adding or multiplying) to create new variables
 
 ### Data Transformations
 
@@ -167,10 +192,6 @@ transform <- function(d){
 training_trans<-data.frame(t(rbind(apply(training,1,transform))))
 evaluation_trans<-data.frame(t(rbind(apply(evaluation,1,transform))))
 
-
-
-
-
 columns <- colnames(training_trans)
 target_bin <- c("TARGET_FLAG")
 target_lm <- c("TARGET_AMT")
@@ -202,9 +223,7 @@ summary(training_trans)
 
 
 ```{r}
-
 # impute
-
 impute <- function (d) {
   d[is.na(d$AGE),]$AGE <- mean(d$AGE,na.rm = TRUE)
   d[is.na(d$YOJ),]$YOJ <- mean(d$YOJ,na.rm = TRUE)
@@ -214,13 +233,11 @@ impute <- function (d) {
   d
 }
 
-
 training_trans<-impute(training_trans)
 evaluation_trans<-impute(evaluation_trans)
 
 
 # Cap values
-
 # calculate transformation parameters
 
 mean_sd <- function(x){
@@ -237,17 +254,9 @@ capColumn <- function(col,d){
     x
 }
 
-
-
 training_trans <- cbind(data.frame(sapply(inputs_num,function(x){capColumn(x,training_trans)})),training_trans[,c(inputs_bin,target)])
 evaluation_trans <- cbind(data.frame(sapply(inputs_num,function(x){capColumn(x,evaluation_trans)})),evaluation_trans[,c(inputs_bin)])
-
-
 ```
-
-
-
-b. Bar Chart or Box Plot of the data
 
 ### How are the input values distributed?, do we need to do something about them?
 
@@ -257,7 +266,7 @@ Let's get a view of the normalized values:
 
 # Binary target variable
 
-```{r}
+```{r,warning=FALSE,message=FALSE}
 require("reshape2")
 require("ggplot2")
 detach(package:plyr)
@@ -291,9 +300,7 @@ ggplot(bin_summary, aes(variable, pct)) +
 
 possible correlations
 
-```{r}
-
-
+```{rwarning=FALSE, message=FALSE}
 summary_positive <- describe(training_normalized[training_normalized$TARGET_FLAG==1,c(target_bin,inputs)])[,c("mean","n")]
 summary_negative <- describe(training_normalized[training_normalized$TARGET_FLAG==0,c(target_bin,inputs)])[,c("mean","n")]
 summary_by_target <- merge(summary_positive,summary_negative,by="row.names")
@@ -301,7 +308,6 @@ colnames(summary_by_target) <- c("Variable","In car crash - Avg","In car crash -
 summary_by_target$delta <- abs(summary_by_target[,"In car crash - Avg"]-summary_by_target[,"NOT In car crash - Avg"])
 
 kable(summary_by_target[order(-summary_by_target$delta),])
-
 ```
 
 
