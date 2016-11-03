@@ -224,7 +224,7 @@ evaluation_trans<-impute(evaluation_trans)
 # calculate transformation parameters
 
 mean_sd <- function(x){
-  c( qnorm(0.05,mean(x),sd(x)), qnorm(0.95,mean(x),sd(x)) )
+  c( qnorm(0.025,mean(x),sd(x)), qnorm(0.975,mean(x),sd(x)) )
 }
 
 trans_params<-data.frame(apply( training_trans[,inputs_num],2, mean_sd))
@@ -238,7 +238,24 @@ capColumn <- function(col,d){
 }
 
 
+histColumn <- function(col,d){
+    quantiles <- trans_params[,col]
+    data <- d[order(d[,col]),c(col,target_bin)]
+    x <- data[,col]
+    y <- cumsum(data[,target_bin])/sum(data[,target_bin])
+    y_inv <- (sum(data[,target_bin])-cumsum(data[,target_bin]))/sum(data[,target_bin])
+    plot(y~x, main=col)
+    points(x,y_inv,col="red")
+    data
+}
 
+
+sapply(inputs_num,function(x){histColumn(x,training_trans)})
+
+col <- "KIDSDRIV"
+    quantiles <- trans_params[,col]
+    x <- training_trans[,col]
+    hist(c(x[ x < quantiles[1] ],x[ x > quantiles[2] ]), main=col)
 training_trans <- cbind(data.frame(sapply(inputs_num,function(x){capColumn(x,training_trans)})),training_trans[,c(inputs_bin,target)])
 evaluation_trans <- cbind(data.frame(sapply(inputs_num,function(x){capColumn(x,evaluation_trans)})),evaluation_trans[,c(inputs_bin)])
 
