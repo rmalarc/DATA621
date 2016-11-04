@@ -247,21 +247,27 @@ Let's see how the TARGET_FLAG and TARGET_NUM respond to each of the numerical fe
 
 ```{r}
 
-binResponse <- function(col,d){
-#  par(mfrow=c(2,1))
+numResponse <- function(col,d){
+#  par(mfrow=c(4,1))
     data <- d[order(d[,col]),c(col,target_bin)]
     x <- data[,col]
-    y <- cumsum(data[,target_bin])/sum(data[,target_bin])
-    y_inverse <- (sum(data[,target_bin])-cumsum(data[,target_bin]))/sum(data[,target_bin])
+    y <- cumsum(data[,target_bin])/length(x)#sum(data[,target_bin])
+#    y_inverse <- (sum(data[,target_bin])-cumsum(data[,target_bin]))/sum(data[,target_bin])
     plot(y~x, main=paste0("TARGET_FLAG ~ ",col," Response"))
-    points(x,y_inverse,col="red") # adding inverse so it gives a better visual appreciation of what's going on
-#    x <- log(data[,col])
-#    plot(y~x, main=paste0("TARGET_FLAG ~ log(",col,") Response"))
 #    points(x,y_inverse,col="red") # adding inverse so it gives a better visual appreciation of what's going on
+
+    data <- d[order(d[,col]),c(col,target_lm)]
+    x <- data[,col]
+    y <- data[,target_lm]
+    plot(y~x, main=paste0("TARGET_AMT ~ ",col," Response"))
+
+    x <- data[,col]
+    y <- log(data[,target_lm])
+    plot(y~x, main=paste0("log(TARGET_AMT) ~ ",col," Response"))
 }
 
 
-sapply(inputs_num,function(x){binResponse(x,training_trans)})
+sapply(inputs_num,function(x){numResponse(x,training_trans)})
 
 
 ```
@@ -282,42 +288,6 @@ hist(training_trans[training_trans$TARGET_FLAG==1,target_lm])
 
 The distribution of values of the response target_lm suggest that we may benefit from a log tranformation on the response.
 
-Let's see what the individual plots look like:
-
-```{r}
-
-###############
-
-lmResponse <- function(col,d){
-    data <- d[order(d[,col]),c(col,target_lm)]
-    x <- data[,col]
-    y <- data[,target_lm]
-    plot(y~x, main=paste0("TARGET_LM ~ ",col," Response"))
-}
-
-
-nnn<-sapply(inputs_num,function(x){lmResponse(x,training_trans[training_trans$TARGET_FLAG==1,])})
-
-```
-
-From the charts above, I fail to see a linear response to any of the targets. Let's apply a log transformation on the target and see if it changes:
-
-
-```{r}
-
-
-
-lmResponse <- function(col,d){
-    data <- d[order(d[,col]),c(col,target_lm)]
-    x <- data[,col]
-    y <- log(data[,target_lm])
-    plot(y~x, main=paste0("log(TARGET_LM) ~ ",col," Response"))
-}
-
-
-sapply(inputs_num,function(x){lmResponse(x,training_trans[training_trans$TARGET_FLAG==1,])})
-
-```
 
 I now see a better linear pattern, we should get a better linear fit. A log transformation of the target seems adequate, aside from some negative values that need to be zeroed out, it is not evident that any outliers of the predictors may skew the linear fit. With that, no further transformations seem required. 
 
