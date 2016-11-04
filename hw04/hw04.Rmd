@@ -265,7 +265,8 @@ numResponse <- function(col,d){
     legend(max(x)*2/3, 0.1, c("Observed Probability", "Characteristic Binomial"), col = c("black","red"),
            lty=c(1,1),lwd=7,merge = TRUE)
 
-    data <- d[order(d[,col]),c(col,target_lm)]
+    data <- d[d$TARGET_FLAG==1,]
+    data <- data[order(data[,col]),c(col,target_lm)]
     x <- data[,col]
     y <- data[,target_lm]
     plot(y~x, main=paste0("TARGET_AMT ~ ",col," Response"),xlab=col, ylab="TARGET_AMT")
@@ -273,7 +274,7 @@ numResponse <- function(col,d){
     x <- data[,col]
     y <- log(data[,target_lm])
     plot(y~x, main=paste0("log(TARGET_AMT) ~ ",col," Response"),xlab=col, ylab="TARGET_AMT")
-    c(decimal_digits,decimal_base)
+    c(nrow(data),nrow(d))
 }
 
 
