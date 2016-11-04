@@ -247,23 +247,33 @@ Let's see how the TARGET_FLAG and TARGET_NUM respond to each of the numerical fe
 
 ```{r}
 
+y_characteristic <- cumsum(rbinom(nrow(training_trans),1,sum(training_trans$TARGET_FLAG)/length(training_trans$TARGET_FLAG)))/length(training_trans$TARGET_FLAG)
 numResponse <- function(col,d){
 #  par(mfrow=c(4,1))
     data <- d[order(d[,col]),c(col,target_bin)]
     x <- data[,col]
+    decimal_base <- 0.25
+    decimal_digits<- log10(sum(range(x)*(c(-1,1))))
+    if (decimal_digits >1.8) {
+      decimal_base <- 10^floor(decimal_digits-1)
+      x<- (x%/%(3*decimal_base)*(3*decimal_base))
+    }
     y <- cumsum(data[,target_bin])/length(x)#sum(data[,target_bin])
 #    y_inverse <- (sum(data[,target_bin])-cumsum(data[,target_bin]))/sum(data[,target_bin])
-    plot(y~x, main=paste0("TARGET_FLAG ~ ",col," Response"))
-#    points(x,y_inverse,col="red") # adding inverse so it gives a better visual appreciation of what's going on
+    plot(y~x, main=paste0("TARGET_FLAG ~ ",col," Response"),xlab=col, ylab="P(TARGET_FLAG)")
+    points(x+decimal_base,y_characteristic,col="red") # adding inverse so it gives a better visual appreciation of what's going on
+    legend(max(x)*2/3, 0.1, c("Observed Probability", "Characteristic Binomial"), col = c("black","red"),
+           lty=c(1,1),lwd=7,merge = TRUE)
 
     data <- d[order(d[,col]),c(col,target_lm)]
     x <- data[,col]
     y <- data[,target_lm]
-    plot(y~x, main=paste0("TARGET_AMT ~ ",col," Response"))
+    plot(y~x, main=paste0("TARGET_AMT ~ ",col," Response"),xlab=col, ylab="TARGET_AMT")
 
     x <- data[,col]
     y <- log(data[,target_lm])
-    plot(y~x, main=paste0("log(TARGET_AMT) ~ ",col," Response"))
+    plot(y~x, main=paste0("log(TARGET_AMT) ~ ",col," Response"),xlab=col, ylab="TARGET_AMT")
+    c(decimal_digits,decimal_base)
 }
 
 
