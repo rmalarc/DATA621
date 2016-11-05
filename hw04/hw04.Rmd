@@ -200,14 +200,6 @@ inputs_bin <- columns[grep("_BIN",columns)]
 inputs_num <- columns[!columns %in% c(target,"INDEX",inputs_bin)]
 inputs<- c(inputs_bin,inputs_num)
 
-summary <- describe(training_trans[,c(target,inputs)])[,c("n","mean","sd","median","min","max")]
-summary$completeness <- summary$n/nrow(training_trans)
-summary$cv <- 100*summary$sd/summary$mean
-
-kable(summary)
-
-head(training_trans)
-summary(training_trans)
 
 
   #* Cap numerical values to their 5/95 percentiles
@@ -304,18 +296,104 @@ I now see a better linear pattern, we should get a better linear fit. A log tran
 
 ##### **Transformations Implementation**
 
+Numerical Transformations:
+
+* Cap AGE at 70, negative values not permitted
+* Cap YOJ at 20, negative values not permitted
+* Cap CAR_AGE at 20, negative values not permitted
+* Cap KIDSDRIV at 3, negative values not permitted
+* Cap HOMEKIDS at 4, negative values not permitted
+* Cap TRAVTIME at 75, negative values not permitted
+* Cap TIF at 17, negative values not permitted
+* Cap CLM_FREQ at 4, negative values not permitted
+* Cap MVR_PTS at 10, negative values not permitted
+* Cap INCOME at 175000, negative values not permitted
+* Cap BLUEBOOK at 40000, negative values not permitted
+* Cap OLDCLAIM at 40000, negative values not permitted
+
+
 ```{r}
 
 # Cap values
 
-capColumn <- function(col,d){
-    x <- d[,col]
-    x[ x < 0 ] <- 0
-    x
+d<- training_trans 
+capColumns <- function(d){
+  outputCols<- colnames(d)
+  
+
+  #* Cap AGE at 70, negative values not permitted
+  d[d$AGE <0, 'AGE'] <- 0
+  d[d$AGE >=70, 'AGE'] <- 70
+  
+  #* Cap YOJ at 20, negative values not permitted
+  d[d$YOJ <0, 'YOJ'] <- 0
+  d[d$YOJ >=20, 'YOJ'] <- 20
+  
+  #* Cap CAR_AGE at 20, negative values not permitted
+  d[d$CAR_AGE <0, 'CAR_AGE'] <- 0
+  d[d$CAR_AGE >=20, 'CAR_AGE'] <- 20
+  
+  #* Cap KIDSDRIV at 3, negative values not permitted
+  d[d$KIDSDRIV <0, 'KIDSDRIV'] <- 0
+  d[d$KIDSDRIV >=3, 'KIDSDRIV'] <- 3
+  
+  #* Cap HOMEKIDS at 4, negative values not permitted
+  d[d$HOMEKIDS <0, 'HOMEKIDS'] <- 0
+  d[d$HOMEKIDS >=4, 'HOMEKIDS'] <- 4
+
+  #* Cap TRAVTIME at 75, negative values not permitted
+  d[d$TRAVTIME <0, 'TRAVTIME'] <- 0
+  d[d$TRAVTIME >=75, 'TRAVTIME'] <- 75
+
+  #* Cap TIF at 17, negative values not permitted
+  d[d$TIF <0, 'TIF'] <- 0
+  d[d$TIF >=17, 'TIF'] <- 17
+
+  #* Cap CLM_FREQ at 4, negative values not permitted
+  d[d$CLM_FREQ <0, 'CLM_FREQ'] <- 0
+  d[d$CLM_FREQ >=4, 'CLM_FREQ'] <- 4
+
+  #* Cap MVR_PTS at 10, negative values not permitted
+  d[d$MVR_PTS <0, 'MVR_PTS'] <- 0
+  d[d$MVR_PTS >=10, 'MVR_PTS'] <- 10
+
+  #* Cap INCOME at 175000, negative values not permitted
+  d[d$INCOME <0, 'INCOME'] <- 0
+  d[d$INCOME >=175000, 'INCOME'] <- 175000
+
+  #* Cap BLUEBOOK at 40000, negative values not permitted
+  d[d$BLUEBOOK <0, 'BLUEBOOK'] <- 0
+  d[d$BLUEBOOK >=40000, 'BLUEBOOK'] <- 40000
+  
+  #* Cap OLDCLAIM at 40000, negative values not permitted
+  d[d$OLDCLAIM <0, 'OLDCLAIM'] <- 0
+  d[d$OLDCLAIM >=40000, 'OLDCLAIM'] <- 40000
+  
+  d
+
 }
 
-training_trans <- cbind(data.frame(sapply(inputs_num,function(x){capColumn(x,training_trans)})),training_trans[,c(inputs_bin,target)])
-evaluation_trans <- cbind(data.frame(sapply(inputs_num,function(x){capColumn(x,evaluation_trans)})),evaluation_trans[,c(inputs_bin)])
+
+training_trans <- capColumns(training_trans)
+evaluation_trans <- capColumns(evaluation_trans)
+
+
+
+
+```
+
+#### Final summary
+
+```{r}
+summary <- describe(training_trans[,c(target,inputs)])[,c("n","mean","sd","median","min","max")]
+summary$completeness <- summary$n/nrow(training_trans)
+summary$cv <- 100*summary$sd/summary$mean
+
+kable(summary)
+
+#head(training_trans)
+#summary(training_trans)
+
 
 ```
 
@@ -361,7 +439,8 @@ ggplot(bin_summary, aes(variable, pct)) +
 
 possible correlations
 
-```{rwarning=FALSE, message=FALSE}
+```{r warning=FALSE, message=FALSE}
+
 summary_positive <- describe(training_normalized[training_normalized$TARGET_FLAG==1,c(target_bin,inputs)])[,c("mean","n")]
 summary_negative <- describe(training_normalized[training_normalized$TARGET_FLAG==0,c(target_bin,inputs)])[,c("mean","n")]
 summary_by_target <- merge(summary_positive,summary_negative,by="row.names")
@@ -369,6 +448,7 @@ colnames(summary_by_target) <- c("Variable","In car crash - Avg","In car crash -
 summary_by_target$delta <- abs(summary_by_target[,"In car crash - Avg"]-summary_by_target[,"NOT In car crash - Avg"])
 
 kable(summary_by_target[order(-summary_by_target$delta),])
+
 ```
 
 
@@ -430,10 +510,35 @@ kable(summary_by_target[order(-summary_by_target$delta),])
 
 ## TRAINIG DATASETS
 
-Let's split the dataset into training and testing so that we end up with two datasets:
+#NEED TO:
 
-* for logistic regression (training_flag, testing_flag)
-* for linear regression (training_num, testing_num)
+* split datasets 
+* run models
+
+```{r}
+
+
+training_target_flag <- training_trans
+
+#target_flag_model_all_bin <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs_bin,target_bin)],family = binomial)
+#summary(target_flag_model_all_bin)
+
+#target_flag_model_all_num <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs_num,target_bin)],family = binomial)
+#summary(target_flag_model_all_num)
+
+target_flag_model_all <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs,target_bin)],family = binomial)
+summary(target_flag_model_all)
+
+
+training_target_amt <- training_trans[training_trans$TARGET_FLAG==1,]
+
+#training_target_amt$TARGET_AMT <- log(training_target_amt$TARGET_AMT)  ..... to log or not to log?
+
+target_amt_model_all <- glm(TARGET_AMT~.,data=training_target_amt[,c(inputs,target_lm)])
+summary(target_amt_model_all)
+
+```
+
 
 #```{r}
 library(BalancedSampling)
