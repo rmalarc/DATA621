@@ -580,7 +580,7 @@ regression after transformations
 
 ## 3. BUILD MODELS (25 Points)
 
-Using the training data, build at least three different binary logistic regression models, using different variables (or the same variables with different transformations). You may select the variables manually, use an approach such as Forward or Stepwise, use a different approach, or use a combination of techniques. Describe the techniques you used. If you manually selected a variable for inclusion into the model or exclusion into the model, indicate why this was done.
+Using the training data set, build at least two different multiple linear regression models and three different binary logistic regression models, using different variables (or the same variables with different transformations). You may select the variables manually, use an approach such as Forward or Stepwise, use a different approach such as trees, or use a combination of techniques. Describe the techniques you used. If you manually selected a variable for inclusion into the model or exclusion into the model, indicate why this was done.
 
 Be sure to explain how you can make inferences from the model, as well as discuss other relevant model output. Discuss the coefficients in the models, do they make sense? Are you keeping the model even though it is counter intuitive? Why? The boss needs to know.
 
@@ -591,13 +591,10 @@ MLR Full model, all variables, flag + amt
 The flag one looks okay here, the amt one doesn't seem to work so well.
 
 ```{r}
-training_target_flag <- training_trans
-target_flag_model_all <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs,target_bin)])
-summary(target_flag_model_all)
-
 training_target_amt <- training_trans[training_trans$TARGET_FLAG==1,]
 target_amt_model_all <- glm(TARGET_AMT~.,data=training_target_amt[,c(inputs,target_lm)])
 summary(target_amt_model_all)
+model1_amt <- target_amt_model_all
 ```
 
 
@@ -609,6 +606,7 @@ MLR Full model with log transformation on amt, all variables, amt only
 training_target_amt$TARGET_AMT <- log(training_target_amt$TARGET_AMT)
 target_amt_model_all <- glm(TARGET_AMT~.,data=training_target_amt[,c(inputs,target_lm)])
 summary(target_amt_model_all)
+model2_amt <- target_amt_model_all
 ```
 
 
@@ -620,13 +618,35 @@ Manually remove variables from model 1 that weren't significant for flag. And tr
 inputs_manual_flag <- inputs[-c(4,5,7,8,11,13,15,23,26,28,30)]
 target_flag_model_all <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs_manual_flag,target_bin)])
 summary(target_flag_model_all)
+model3_flag = target_flag_model_all
 
 inputs_manual_amt <- inputs[c(4,24,28,36)]
 training_target_amt <- training_trans[training_trans$TARGET_FLAG==1,]
 target_amt_model_all <- glm(TARGET_AMT~.,data=training_target_amt[,c(inputs_manual_amt,target_lm)])
 summary(target_amt_model_all)
+model3_amt = target_amt_model_all
 ```
 
+
+#### Model 4.
+
+Binary Logistic Regression Baseline with all variables.
+
+```{r}
+training_target_flag <- training_trans
+target_flag_model_all <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs,target_bin)],family = binomial(link = "logit"))
+summary(target_flag_model_all)
+model4_flag = target_flag_model_all
+```
+
+#### Model 5.
+
+```{r}
+inputs_manual_flag <- inputs[-c(4,5,8,9,11,13,14,15,23,26,28,30)]
+target_flag_model_all <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs_manual_flag,target_bin)],family = binomial(link = "logit"))
+summary(target_flag_model_all)
+model5_flag = target_flag_model_all
+```
 
 ## 4. SELECT MODELS (25 Points)
 
