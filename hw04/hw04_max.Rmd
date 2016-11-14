@@ -686,6 +686,10 @@ precision_c(d)
 sensitivity_c(d)
 specificity_c(d)
 f1_score(d)
+require("pROC")
+d_roc <- roc(training_trans_eval_bin$TARGET_FLAG,predict2)
+plot(d_roc, main = "ROC with pROC")
+
 
 #predict 3
 d<- data.frame(class=training_trans_eval_bin$TARGET_FLAG,scored.class=ifelse(predict3>0.5,1,0))
@@ -697,6 +701,9 @@ precision_c(d)
 sensitivity_c(d)
 specificity_c(d)
 f1_score(d)
+require("pROC")
+d_roc <- roc(training_trans_eval_bin$TARGET_FLAG,predict3)
+plot(d_roc, main = "ROC with pROC")
 
 
 ```
