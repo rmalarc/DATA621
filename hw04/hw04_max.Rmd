@@ -515,27 +515,6 @@ kable(summary_by_target[order(-summary_by_target$delta),])
 * split datasets 
 * run models
 
-```{r}
-
-#target_flag_model_all_bin <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs_bin,target_bin)],family = binomial)
-#summary(target_flag_model_all_bin)
-
-#target_flag_model_all_num <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs_num,target_bin)],family = binomial)
-#summary(target_flag_model_all_num)
-
-#target_flag_model_all <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs,target_bin)],family = binomial)
-#summary(target_flag_model_all)
-
-
-#training_target_amt <- training_trans[training_trans$TARGET_FLAG==1,]
-
-#training_target_amt$TARGET_AMT <- log(training_target_amt$TARGET_AMT)  ..... to log or not to log?
-
-#target_amt_model_all <- glm(TARGET_AMT~.,data=training_target_amt[,c(inputs,target_lm)])
-#summary(target_amt_model_all)
-
-```
-
 
 ```{r}
 
@@ -546,31 +525,6 @@ training_trans_model_bin <- training_trans[train_rows,]
 training_trans_eval_bin <- training_trans[-train_rows,]
 
 ```
-
-
-
-#```{r}
-
-model <- glm(I(target)~.,data=train,family = binomial)
-
-summary(model)
-
-predicted <- predict(model,test,type='response')
-require("pROC")
-d_roc <- roc(ifelse(test$target>0.5,1,0),predicted)
-plot(d_roc, main = "ROC with pROC")
-#ci(d_roc)
-
-require("caret")
-table(ifelse(test$target>0.5,1,0),ifelse(predicted>0.5,1,0))
-
-```
-
-
-regression after transformations
-
-
-
 
 ## 3. BUILD MODELS (25 Points)
 
@@ -648,6 +602,8 @@ summary(backward)
 model6_flag <- backward
 ```
 
+#### Model 7.
+
 ```{r cache = TRUE}
 stepwise_flag_model2 <- glm(TARGET_FLAG~1,data=training_target_flag[,c(inputs,target_bin)], family = binomial(link = "probit"))
 
@@ -667,33 +623,10 @@ For the multiple linear regression model, will you use a metric such as Adjusted
 
 ```{r}
 plot(model3_amt)
-plot(model7_flag)
+plot(model6_flag)
 ```
 
-
-# Predictions
-
-#```{r}
-
-mean_sd <- function(x){
-  c( qnorm(0.05,mean(x),sd(x)), qnorm(0.95,mean(x),sd(x)) )
-}
-
-
-trans_params<-data.frame(apply( transformed[,inputs],2, mean_sd))
-
-cap <- function(col){
-    quantiles <- trans_params[,col]
-    x <- evaluation[,col]
-    x[ x < quantiles[1] ] <- max(0,quantiles[1])
-    x[ x > quantiles[2] ] <- quantiles[2]
-    x
-}
-
-#transformed$black <- log(transformed$black)
-
-evaluation_transformed <- data.frame(sapply(inputs,function(x){cap(x)}))
-evaluation$predict <- predict(model,evaluation_transformed,type='response')>0.5
-
-kable(data.frame(evaluation))
+```{r}
+m3 <- summary(model3_amt)
+m6 <- summary(model6_flag)
 ```
