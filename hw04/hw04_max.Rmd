@@ -537,20 +537,14 @@ kable(summary_by_target[order(-summary_by_target$delta),])
 ```
 
 
-#```{r}
-library(BalancedSampling)
+```{r}
 
-## 75% of the sample size
-smp_size <- floor(0.75 * nrow(training_trans))
+library(caTools)
 
-training_trans$TARGET_FLAG
+train_rows <- sample.split(training_trans$TARGET_FLAG, SplitRatio=0.7)
+training_trans_model_bin <- training_trans[train_rows,]
+training_trans_eval_bin <- training_trans[-train_rows,]
 
-## set the seed to make your partition reproductible
-set.seed(123)
-train_ind <- c(sample(seq_len(nrow(transformed[transformed$target==1,])), size = smp_size/2),sample(seq_len(nrow(transformed[transformed$target==0,])), size = smp_size/2))
-
-training_flag <- transformed[train_ind, ]
-testing_flag <- transformed[-train_ind, ]
 ```
 
 
@@ -628,7 +622,7 @@ model3_amt = target_amt_model_all
 Binary Logistic Regression Baseline with all variables.
 
 ```{r}
-training_target_flag <- training_trans
+training_target_flag <- training_trans_model_bin
 target_flag_model_all <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs,target_bin)],family = binomial(link = "logit"))
 summary(target_flag_model_all)
 model4_flag = target_flag_model_all
