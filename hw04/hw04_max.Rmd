@@ -2,7 +2,7 @@
 title: "DATA621 - Insurance"
 author: "Daniel Hong, Mauricio Alarcon, Maxwell Wagner"
 date: "October 10, 2016"
-output: html_document
+output: word_document
 ---
 
 ```{r setup, include=FALSE}
@@ -704,6 +704,9 @@ f1_score(d)
 require("pROC")
 d_roc <- roc(training_trans_eval_bin$TARGET_FLAG,predict3)
 plot(d_roc, main = "ROC with pROC")
+```
 
-
+```{r}
+round(predict(forward, evaluation_trans ,type = 'response'), 4)
+round(predict(model3_amt, evaluation_trans ,type = 'response'), 4)
 ```
