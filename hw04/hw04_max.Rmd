@@ -597,7 +597,7 @@ model5_flag = target_flag_model_all
 stepwise_flag_model <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs,target_bin)], family = binomial(link = "probit"))
 
 backward <- step(stepwise_flag_model, trace = 0)
-predict2 <- round(predict(backward, type = 'response'), 4)
+predict2 <- round(predict(backward,training_trans_eval_bin , type = 'response'), 4)
 summary(backward)
 model6_flag <- backward
 ```
@@ -608,7 +608,7 @@ model6_flag <- backward
 stepwise_flag_model2 <- glm(TARGET_FLAG~1,data=training_target_flag[,c(inputs,target_bin)], family = binomial(link = "probit"))
 
 forward <- step(stepwise_flag_model2, scope = list(lower=formula(stepwise_flag_model2), upper=formula(stepwise_flag_model)), direction = "forward", trace = 0)
-predict3 <- round(predict(forward, type = 'response'), 4)
+predict3 <- round(predict(forward, training_trans_eval_bin ,type = 'response'), 4)
 summary(forward)
 model7_flag <- forward
 ```
@@ -629,4 +629,74 @@ plot(model6_flag)
 ```{r}
 m3 <- summary(model3_amt)
 m6 <- summary(model6_flag)
+```
+
+
+
+```{r}
+
+
+# let's use this helper function that will return all the rates for future calculations
+confusion_matrix <- function(d){
+  data.frame(tp=nrow(d[d$class==1 & d$scored.class==1,]),
+             tn=nrow(d[d$class==0 & d$scored.class==0,]),
+             fp=nrow(d[d$class==0 & d$scored.class==1,]),
+             fn=nrow(d[d$class==1 & d$scored.class==0,])
+  )
+}
+accuracy<-function(d){
+  f <- confusion_matrix(d)
+  (f$tp+f$tn)/(f$tp+f$fp+f$tn+f$fn)
+}
+
+classification_error_rate<-function(d){
+  f <- confusion_matrix(d)
+  (f$fp+f$fn)/(f$tp+f$fp+f$tn+f$fn)
+}
+
+precision_c<-function(d){
+  f <- confusion_matrix(d)
+  (f$tp)/(f$tp+f$fp)
+}
+
+sensitivity_c<-function(d){
+  f <- confusion_matrix(d)
+  (f$tp)/(f$tp+f$fn)
+}
+
+specificity_c<-function(d){
+  f <- confusion_matrix(d)
+  (f$tn)/(f$tn+f$fp)
+}
+
+
+f1_score<-function(d){
+  p<- precision_c(d)
+  s<- sensitivity_c(d)
+  2*p*s/(p+s)
+}
+
+#predict 2
+d<- data.frame(class=training_trans_eval_bin$TARGET_FLAG,scored.class=ifelse(predict2>0.5,1,0))
+
+confusion_matrix(d)
+accuracy(d)
+classification_error_rate(d)
+precision_c(d)
+sensitivity_c(d)
+specificity_c(d)
+f1_score(d)
+
+#predict 3
+d<- data.frame(class=training_trans_eval_bin$TARGET_FLAG,scored.class=ifelse(predict3>0.5,1,0))
+
+confusion_matrix(d)
+accuracy(d)
+classification_error_rate(d)
+precision_c(d)
+sensitivity_c(d)
+specificity_c(d)
+f1_score(d)
+
+
 ```
