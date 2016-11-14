@@ -615,11 +615,6 @@ model2_amt <- target_amt_model_all
 Manually remove variables from model 1 that weren't significant for flag. And try a version for amt that only has a few variables.
 
 ```{r}
-inputs_manual_flag <- inputs[-c(4,5,7,8,11,13,15,23,26,28,30)]
-target_flag_model_all <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs_manual_flag,target_bin)])
-summary(target_flag_model_all)
-model3_flag = target_flag_model_all
-
 inputs_manual_amt <- inputs[c(4,24,28,36)]
 training_target_amt <- training_trans[training_trans$TARGET_FLAG==1,]
 target_amt_model_all <- glm(TARGET_AMT~.,data=training_target_amt[,c(inputs_manual_amt,target_lm)])
@@ -647,6 +642,28 @@ target_flag_model_all <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs_m
 summary(target_flag_model_all)
 model5_flag = target_flag_model_all
 ```
+
+#### Model 6.
+
+```{r}
+stepwise_flag_model <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs,target_bin)], family = binomial(link = "probit"))
+
+backward <- step(stepwise_flag_model, trace = 0)
+predict2 <- round(predict(backward, type = 'response'), 4)
+summary(backward)
+model6_flag <- backward
+```
+
+```{r}
+stepwise_flag_model2 <- glm(TARGET_FLAG~1,data=training_target_flag[,c(inputs,target_bin)], family = binomial(link = "probit"))
+
+forward <- step(stepwise_flag_model2, scope = list(lower=formula(stepwise_flag_model2), upper=formula(stepwise_flag_model)), direction = "forward", trace = 0)
+predict3 <- round(predict(forward, type = 'response'), 4)
+summary(forward)
+model7_flag <- forward
+```
+
+
 
 ## 4. SELECT MODELS (25 Points)
 
