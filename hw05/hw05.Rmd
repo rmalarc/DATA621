@@ -2,7 +2,7 @@
 title: "DATA621 - Wine"
 author: "Daniel Hong, Mauricio Alarcon, Maxwell Wagner"
 date: "Nov 15, 2016"
-output: word_document
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
@@ -96,22 +96,9 @@ e. Combine variables (such as ratios or adding or multiplying) to create new var
 
 Based on the dataset description we need to:
 
- * Convert INCOME to numeric, replace 0 for NA
- * Convert PARENT1 to flag (1/0)
- * Convert HOME_VAL to NON_HOMEOWNER flag
- * Convert MSTATUS to Flag IS_SINGLE (1/0)
- * Convert SEX to Flag (IS_MALE)
- * Breakout EDUCATION into ED_HS, ED_BACHELORS,ED_MASTERS, ED_PHD
- * Breakout JOB into JOB_BLUE_COLLAR, JOB_CLERICAL, JOB_PROFESSIONAL, JOB_MANAGERIAL, JOB_LAWYER, JOB_STUDENT,JOB_DOCTOR, JOB_HOME_MAKER
- * Convert CAR_USE to flat(1/0 IS_COMMERCIAL)
- * Convert BLUEBOOK to numeric
- * Breakout CAR_TYPE into: CAR_PANEL_TRUCK,CAR_PICKUP,CAR_SPORTS_CAR,CAR_VAN,CAR_SUV
- * Convert RED_CAR to flag (1/0)
- * Convert OLDCLAIM to numeric   
- * Convert REVOKED to flag (1/0)
- * Convert URBANICITY to flag (1/0 IS_URBAN)
- 
- As a convention, all binary variables will be prefixed with "_BIN"
+ * Breakout STARS ordinal into STARS_MISSING, STARS_1, STARS_2, STARS_3, STARS_4
+ * Impute missing values with median: ResidualSugar, Chlorides, FreeSulfurDioxide, TotalSulfurDioxide, pH, Sulphates, Alcohol
+
 
  
 ```{r}
@@ -122,108 +109,42 @@ parseStringValue <- function(v, zeroToNa){
 }
 
 transform <- function(d){
-  outputCols<- c("TARGET_FLAG","TARGET_AMT","AGE", "YOJ", "CAR_AGE","KIDSDRIV","HOMEKIDS","TRAVTIME","TIF","CLM_FREQ","MVR_PTS")
+  outputCols<- c("TARGET","FixedAcidity","VolatileAcidity","CitricAcid","ResidualSugar","Chlorides","FreeSulfurDioxide","TotalSulfurDioxide","Density","pH","Sulphates","Alcohol","LabelAppeal","AcidIndex")
   
+  s <- d['STARS']
+  s[is.na(s)] <- 0
+  d['STARS'] <- s
 
-  #* Convert INCOME to numeric, replace 0 for NA
-  d['INCOME'] <- parseStringValue(d['INCOME'],TRUE)
-  outputCols <- c(outputCols,'INCOME')
- 
-  #* Convert PARENT1 to flag (1/0)
-  d['PARENT1_BIN'] <- if (d['PARENT1']=="Yes") {1} else {0}
-  outputCols <- c(outputCols,'PARENT1_BIN')
+  d['STARS_MISSING_BIN'] <- if (s==0) {1} else {0}
+  outputCols <- c(outputCols,'STARS_MISSING_BIN')
 
-  #* Convert HOME_VAL to NON_HOMEOWNER flag
-  d['NON_HOMEOWNER_BIN'] <- if (is.na(parseStringValue(d['HOME_VAL'],TRUE))) {1} else {0}
-  outputCols <- c(outputCols,'NON_HOMEOWNER_BIN')
-  
-  #* Convert MSTATUS to Flag  IS_SINGLE (1/0
-  #levels(training$MSTATUS)
-  d['IS_SINGLE_BIN'] <- if (d['MSTATUS']=="z_No") {1} else {0}
-  outputCols <- c(outputCols,'IS_SINGLE_BIN')
+  d['STARS_1_BIN'] <- ifelse(s==1,1,0)
+  outputCols <- c(outputCols,'STARS_1_BIN')
 
-  #* Convert SEX to Flag (IS_MALE)
-  d['IS_MALE_BIN'] <- if (d['SEX']=="M") {1} else {0}
-  outputCols <- c(outputCols,'IS_MALE_BIN')
-  
-  #* Breakout EDUCATION into ED_HS, ED_BACHELORS,ED_MASTERS, ED_PHD
-  d['ED_HS_BIN'] <- if (d['EDUCATION']=="z_High School") {1} else {0}
-  d['ED_BACHELORS_BIN'] <- if (d['EDUCATION']=="Bachelors") {1} else {0}
-  d['ED_MASTERS_BIN'] <- if (d['EDUCATION']=="Masters") {1} else {0}
-  d['ED_PHD_BIN'] <- if (d['EDUCATION']=="PhD") {1} else {0}
-  outputCols <- c(outputCols,'ED_HS_BIN','ED_BACHELORS_BIN','ED_MASTERS_BIN','ED_PHD_BIN')
+  d['STARS_2_BIN'] <- ifelse(s==2,1,0)
+  outputCols <- c(outputCols,'STARS_2_BIN')
 
-  #* Breakout JOB into JOB_BLUE_COLLAR, JOB_CLERICAL, JOB_PROFESSIONAL, JOB_MANAGERIAL, JOB_LAWYER, JOB_STUDENT, JOB_DOCTOR, JOB_HOME_MAKER
-  d['JOB_BLUE_COLLAR_BIN'] <- if (d['JOB']=="z_Blue Collar") {1} else {0}
-  d['JOB_CLERICAL_BIN'] <- if (d['JOB']=="Clerical") {1} else {0}
-  d['JOB_PROFESSIONAL_BIN'] <- if (d['JOB']=="Professional") {1} else {0}
-  d['JOB_MANAGERIAL_BIN'] <- if (d['JOB']=="Manager") {1} else {0}
-  d['JOB_LAWYER_BIN'] <- if (d['JOB']=="Lawyer") {1} else {0}
-  d['JOB_STUDENT_BIN'] <- if (d['JOB']=="Student") {1} else {0}
-  d['JOB_DOCTOR_BIN'] <- if (d['JOB']=="Doctor") {1} else {0}
-  d['JOB_HOME_MAKER_BIN'] <- if (d['JOB']=="Home Maker") {1} else {0}
-  outputCols <- c(outputCols,'JOB_BLUE_COLLAR_BIN', 'JOB_CLERICAL_BIN', 'JOB_PROFESSIONAL_BIN', 'JOB_MANAGERIAL_BIN', 'JOB_LAWYER_BIN', 'JOB_STUDENT_BIN', 'JOB_DOCTOR_BIN', 'JOB_HOME_MAKER_BIN')
+  d['STARS_3_BIN'] <- ifelse(s==3,1,0)
+  outputCols <- c(outputCols,'STARS_3_BIN')
 
-  #* Convert CAR_USE to flat(1/0 IS_COMMERCIAL)
-  #levels(training$CAR_USE)
-  d['IS_COMMERCIAL_BIN'] <- if (d['CAR_USE']=="Commercial") {1} else {0}
-  outputCols <- c(outputCols,'IS_COMMERCIAL_BIN')
-  
-  
-  #* Convert BLUEBOOK to numeric
-  d['BLUEBOOK'] <- parseStringValue(d['BLUEBOOK'],FALSE)
-  outputCols <- c(outputCols,'BLUEBOOK')
+  d['STARS_4_BIN'] <- ifelse(s==4,1,0)
+  outputCols <- c(outputCols,'STARS_4_BIN')
 
-  #* Breakout CAR_TYPE into: CAR_PANEL_TRUCK,CAR_PICKUP,CAR_SPORTS_CAR,CAR_VAN,CAR_SUV
-  #levels(training$CAR_TYPE)
-  d['CAR_PANEL_TRUCK_BIN'] <- if (d['CAR_TYPE']=="Panel Truck") {1} else {0}
-  d['CAR_PICKUP_BIN'] <- if (d['CAR_TYPE']=="Pickup") {1} else {0}
-  d['CAR_SPORTS_CAR_BIN'] <- if (d['CAR_TYPE']=="Sports Car") {1} else {0}
-  d['CAR_VAN_BIN'] <- if (d['CAR_TYPE']=="Van") {1} else {0}
-  d['CAR_SUV_BIN'] <- if (d['CAR_TYPE']=="z_SUV") {1} else {0}
-  outputCols <- c(outputCols,'CAR_PANEL_TRUCK_BIN','CAR_PICKUP_BIN','CAR_SPORTS_CAR_BIN','CAR_VAN_BIN','CAR_SUV_BIN')
-
-  #* Convert RED_CAR to flag (1/0)
-  #levels(training$RED_CAR)
-  d['RED_CAR_BIN'] <- if (d['RED_CAR']=="yes") {1} else {0}
-  outputCols <- c(outputCols,'RED_CAR_BIN')
-  
-  #* Convert OLDCLAIM to numeric
-  #levels(training$OLDCLAIM)
-  d['OLDCLAIM'] <- parseStringValue(d['OLDCLAIM'],TRUE)
-  outputCols <- c(outputCols,'OLDCLAIM')
-  
-  #* Convert REVOKED to flag (1/0)
-  #levels(training$REVOKED)
-  d['REVOKED_BIN'] <- if (d['REVOKED']=="Yes") {1} else {0}
-  outputCols <- c(outputCols,'REVOKED_BIN')
-  
-  #* Convert URBANICITY to flag (1/0 IS_URBAN)
-  #levels(training$URBANICITY)
-  d['IS_URBAN_BIN'] <- if (d['URBANICITY']=="Highly Urban/ Urban") {1} else {0}
-  outputCols <- c(outputCols,'IS_URBAN_BIN')
-  
-   
-  r <- as.numeric(d[outputCols])
-  names(r) <- outputCols
-  r
+  d[outputCols]
 }
 
 training_trans<-data.frame(t(rbind(apply(training,1,transform))))
 evaluation_trans<-data.frame(t(rbind(apply(evaluation,1,transform))))
 
 columns <- colnames(training_trans)
-target_bin <- c("TARGET_FLAG")
-target_lm <- c("TARGET_AMT")
+target_bin <- c()
+target_lm <- c("TARGET")
 target <- c(target_bin,target_lm)
 inputs_bin <- columns[grep("_BIN",columns)]
 inputs_num <- columns[!columns %in% c(target,"INDEX",inputs_bin)]
 inputs<- c(inputs_bin,inputs_num)
 
 
-
-  #* Cap numerical values to their 5/95 percentiles
-  #* Fill missing values with mean for: AGE, YOJ, CAR_AGE
 
 ```
 
@@ -237,11 +158,13 @@ inputs<- c(inputs_bin,inputs_num)
 ```{r}
 # impute
 impute <- function (d) {
-  d[is.na(d$AGE),]$AGE <- mean(d$AGE,na.rm = TRUE)
-  d[is.na(d$YOJ),]$YOJ <- mean(d$YOJ,na.rm = TRUE)
-  d[is.na(d$CAR_AGE),]$CAR_AGE <- mean(d$CAR_AGE,na.rm = TRUE)
-  d[is.na(d$INCOME),]$INCOME <- mean(d$INCOME,na.rm = TRUE)
-  d[is.na(d$OLDCLAIM),]$OLDCLAIM <- 0
+  d[is.na(d$ResidualSugar),]$ResidualSugar <- median(d$ResidualSugar,na.rm = TRUE)
+  d[is.na(d$Chlorides),]$Chlorides <- median(d$Chlorides,na.rm = TRUE)
+  d[is.na(d$FreeSulfurDioxide),]$FreeSulfurDioxide <- median(d$FreeSulfurDioxide,na.rm = TRUE)
+  d[is.na(d$TotalSulfurDioxide),]$TotalSulfurDioxide <- median(d$TotalSulfurDioxide,na.rm = TRUE)
+  d[is.na(d$pH),]$pH <- median(d$pH,na.rm = TRUE)
+  d[is.na(d$Sulphates),]$Sulphates <- median(d$Sulphates,na.rm = TRUE)
+  d[is.na(d$Alcohol),]$Alcohol <- median(d$Alcohol,na.rm = TRUE)
   d
 }
 training_trans<-impute(training_trans)
@@ -259,148 +182,38 @@ Let's see how the TARGET_FLAG and TARGET_NUM respond to each of the numerical fe
 
 ```{r}
 
-y_characteristic <- cumsum(rbinom(nrow(training_trans),1,sum(training_trans$TARGET_FLAG)/length(training_trans$TARGET_FLAG)))/length(training_trans$TARGET_FLAG)
 numResponse <- function(col,d){
-#  par(mfrow=c(4,1))
-    data <- d[order(d[,col]),c(col,target_bin)]
-    x <- data[,col]
-    decimal_base <- 0.25
-    decimal_digits<- log10(sum(range(x)*(c(-1,1))))
-    if (decimal_digits >1.8) {
-      decimal_base <- 10^floor(decimal_digits-1)
-      x<- (x%/%(3*decimal_base)*(3*decimal_base))
-    }
-    y <- cumsum(data[,target_bin])/length(x)#sum(data[,target_bin])
-#    y_inverse <- (sum(data[,target_bin])-cumsum(data[,target_bin]))/sum(data[,target_bin])
-    plot(y~x, main=paste0("TARGET_FLAG ~ ",col," Response"),xlab=col, ylab="P(TARGET_FLAG)")
-    points(x+decimal_base,y_characteristic,col="red") # adding inverse so it gives a better visual appreciation of what's going on
-    legend(max(x)*2/3, 0.1, c("Observed Probability", "Characteristic Binomial"), col = c("black","red"),
-           lty=c(1,1),lwd=7,merge = TRUE)
-
-    data <- d[d$TARGET_FLAG==1,]
+    data <- d
     data <- data[order(data[,col]),c(col,target_lm)]
     x <- data[,col]
     y <- data[,target_lm]
-    plot(y~x, main=paste0("TARGET_AMT ~ ",col," Response"),xlab=col, ylab="TARGET_AMT")
 
-    x <- data[,col]
-    y <- log(data[,target_lm])
-    plot(y~x, main=paste0("log(TARGET_AMT) ~ ",col," Response"),xlab=col, ylab="TARGET_AMT")
-    c(nrow(data),nrow(d))
+    plot(y~cut(x,5), main=paste0("TARGET ~ ",col," Boxplot"),xlab=col, ylab="TARGET")
+    plot(y~x, main=paste0("TARGET ~ ",col),xlab=col, ylab="TARGET")
+
 }
 
 
 sapply(inputs_num,function(x){numResponse(x,training_trans)})
+#sapply(inputs_num,function(x){numResponse(x,evaluation_trans)})
 
 
 ```
 
 
-Based on the charts above, we should discretize any variables which don't give a clear sigmoid function. See how beautiful TARGET_FLAG ~ AGE looks...., if we don't get a sigmoid off the bat, we're never going to get a good logistic regression.
-
-The discretization can be tricky. I would discretize in regions where the bars are about the same size (somewhat homogenous). For instance CAR_AGE, I would do CAR_0, CAR_1, CAR_2_4, CAR_5_15, CAR_15_MORE. This is an interesting variable as it appears to be pseudo-sigmoid, with the exception where the car is 1, perhaps a lot of people have accidents past the first year
-
-I'd break HOMEKIDS into: HK_0, HK_1_3, HK_4_MORE
 
 
 ##### **TARGET_NUM**
 
 ```{r}
-hist(training_trans[training_trans$TARGET_FLAG==1,target_lm])
+hist(training_trans[,target_lm])
 ```
 
-The distribution of values of the response target_lm suggest that we may benefit from a log tranformation on the response.
-
-
-I now see a better linear pattern, we should get a better linear fit. A log transformation of the target seems adequate, aside from some negative values that need to be zeroed out, it is not evident that any outliers of the predictors may skew the linear fit. With that, no further transformations seem required. 
 
 ##### **Transformations Implementation**
 
-Numerical Transformations:
+No obvious transformations are identified
 
-* Cap AGE at 70, negative values not permitted
-* Cap YOJ at 20, negative values not permitted
-* Cap CAR_AGE at 20, negative values not permitted
-* Cap KIDSDRIV at 3, negative values not permitted
-* Cap HOMEKIDS at 4, negative values not permitted
-* Cap TRAVTIME at 75, negative values not permitted
-* Cap TIF at 17, negative values not permitted
-* Cap CLM_FREQ at 4, negative values not permitted
-* Cap MVR_PTS at 10, negative values not permitted
-* Cap INCOME at 175000, negative values not permitted
-* Cap BLUEBOOK at 40000, negative values not permitted
-* Cap OLDCLAIM at 40000, negative values not permitted
-
-
-```{r}
-
-# Cap values
-
-d<- training_trans 
-capColumns <- function(d){
-  outputCols<- colnames(d)
-  
-
-  #* Cap AGE at 70, negative values not permitted
-  d[d$AGE <0, 'AGE'] <- 0
-  d[d$AGE >=70, 'AGE'] <- 70
-  
-  #* Cap YOJ at 20, negative values not permitted
-  d[d$YOJ <0, 'YOJ'] <- 0
-  d[d$YOJ >=20, 'YOJ'] <- 20
-  
-  #* Cap CAR_AGE at 20, negative values not permitted
-  d[d$CAR_AGE <0, 'CAR_AGE'] <- 0
-  d[d$CAR_AGE >=20, 'CAR_AGE'] <- 20
-  
-  #* Cap KIDSDRIV at 3, negative values not permitted
-  d[d$KIDSDRIV <0, 'KIDSDRIV'] <- 0
-  d[d$KIDSDRIV >=3, 'KIDSDRIV'] <- 3
-  
-  #* Cap HOMEKIDS at 4, negative values not permitted
-  d[d$HOMEKIDS <0, 'HOMEKIDS'] <- 0
-  d[d$HOMEKIDS >=4, 'HOMEKIDS'] <- 4
-
-  #* Cap TRAVTIME at 75, negative values not permitted
-  d[d$TRAVTIME <0, 'TRAVTIME'] <- 0
-  d[d$TRAVTIME >=75, 'TRAVTIME'] <- 75
-
-  #* Cap TIF at 17, negative values not permitted
-  d[d$TIF <0, 'TIF'] <- 0
-  d[d$TIF >=17, 'TIF'] <- 17
-
-  #* Cap CLM_FREQ at 4, negative values not permitted
-  d[d$CLM_FREQ <0, 'CLM_FREQ'] <- 0
-  d[d$CLM_FREQ >=4, 'CLM_FREQ'] <- 4
-
-  #* Cap MVR_PTS at 10, negative values not permitted
-  d[d$MVR_PTS <0, 'MVR_PTS'] <- 0
-  d[d$MVR_PTS >=10, 'MVR_PTS'] <- 10
-
-  #* Cap INCOME at 175000, negative values not permitted
-  d[d$INCOME <0, 'INCOME'] <- 0
-  d[d$INCOME >=175000, 'INCOME'] <- 175000
-
-  #* Cap BLUEBOOK at 40000, negative values not permitted
-  d[d$BLUEBOOK <0, 'BLUEBOOK'] <- 0
-  d[d$BLUEBOOK >=40000, 'BLUEBOOK'] <- 40000
-  
-  #* Cap OLDCLAIM at 40000, negative values not permitted
-  d[d$OLDCLAIM <0, 'OLDCLAIM'] <- 0
-  d[d$OLDCLAIM >=40000, 'OLDCLAIM'] <- 40000
-  
-  d
-
-}
-
-
-training_trans <- capColumns(training_trans)
-evaluation_trans <- capColumns(evaluation_trans)
-
-
-
-
-```
 
 #### Final summary
 
@@ -423,91 +236,33 @@ Here's the distribution of the values for each of the variables
 
 Let's get a view of the normalized values:
 
-# Binary target variable
+# Numerical target variable - Number of cases ordered
 
-```{r,warning=FALSE,message=FALSE}
+For our descriptive stats & intuitive understanding, let's cut  the car Number of Cases Purchased
+
+```{r}
+
 require("reshape2")
 require("ggplot2")
 detach(package:plyr)
 require("dplyr")
 
-# Let's melt the DF so that we can plot it more easily
 training_normalized <- cbind(data.frame(scale(training_trans[,inputs_num])),training_trans[,c(inputs_bin,target)])
-training_normalized$TARGET_FLAG <- training_normalized$TARGET_FLAG==1
+training_normalized$TARGET_FLAG <- training_normalized$TARGET > median(training_normalized$TARGET)
 
-ggplot(melt(training_normalized, measure.vars = inputs_num),
-       aes(x=variable,y=value)
-       )+
-    geom_boxplot(aes(fill = factor(TARGET_FLAG)))+
-  guides(fill=guide_legend(title="Was Car in a crash")) +
-   theme(legend.position="bottom")+
-    coord_flip()+
-  labs(title="Boxplot of Target Flag ~ Numerical Predictors", y="Normalized Values", x="Predictor")
+#training_normalized$TARGET_CUT <- cut(training_normalized$TARGET,2)
 
-bin_summary <- melt(training_normalized[,c(inputs_bin,target_bin)], measure.vars = inputs_bin) %>%
+
+bin_summary <- melt(training_normalized[,c(inputs_bin,"TARGET_FLAG")], measure.vars = inputs_bin) %>%
   group_by(TARGET_FLAG,variable) %>%
   summarise(pct = sum(value)/length(value))
 
 ggplot(bin_summary, aes(variable, pct)) +   
   geom_bar(aes(fill = TARGET_FLAG), position = "dodge", stat="identity")+
-  guides(fill=guide_legend(title="Was Car in a crash")) +
+  guides(fill=guide_legend(title="Number of Cases Purchased Above Median")) +
    theme(legend.position="bottom")+
     coord_flip()+
-  labs(title="Boxplot of Target Flag ~ Binary Predictors", y="Percent", x="Predictor")
-
-```
-
-possible correlations
-
-```{r warning=FALSE, message=FALSE}
-
-summary_positive <- describe(training_normalized[training_normalized$TARGET_FLAG==1,c(target_bin,inputs)])[,c("mean","n")]
-summary_negative <- describe(training_normalized[training_normalized$TARGET_FLAG==0,c(target_bin,inputs)])[,c("mean","n")]
-summary_by_target <- merge(summary_positive,summary_negative,by="row.names")
-colnames(summary_by_target) <- c("Variable","In car crash - Avg","In car crash - n","NOT In car crash - Avg", "NOT In car crash - n")
-summary_by_target$delta <- abs(summary_by_target[,"In car crash - Avg"]-summary_by_target[,"NOT In car crash - Avg"])
-
-kable(summary_by_target[order(-summary_by_target$delta),])
-
-```
-
-
-
-# Numerical target variable - Cost of Car Crash
-
-For our descriptive stats & intuitive understanding, let's discretize the car crash into Above / Below median cost
-
-```{r}
-
-#require("reshape2")
-#require("ggplot2")
-#detach(package:plyr)
-#require("dplyr")
-
-# Let's melt the DF so that we can plot it more easily
-training_normalized<-training_normalized[training_normalized$TARGET_FLAG,]
-
-training_normalized$TARGET_FLAG <- training_normalized$TARGET_AMT > median(training_normalized$TARGET_AMT)
-
-ggplot(melt(training_normalized, measure.vars = inputs_num),
-       aes(x=variable,y=value)
-       )+
-    geom_boxplot(aes(fill = factor(TARGET_FLAG)))+
-  guides(fill=guide_legend(title="Cost of Car Crash Above Median")) +
-   theme(legend.position="bottom")+
-    coord_flip()+
-  labs(title="Boxplot of Cost of Car Crash Above Median ~ Numerical Predictors", y="Normalized Values", x="Predictor")
-
-bin_summary <- melt(training_normalized[,c(inputs_bin,target_bin)], measure.vars = inputs_bin) %>%
-  group_by(TARGET_FLAG,variable) %>%
-  summarise(pct = sum(value)/length(value))
-
-ggplot(bin_summary, aes(variable, pct)) +   
-  geom_bar(aes(fill = TARGET_FLAG), position = "dodge", stat="identity")+
-  guides(fill=guide_legend(title="Cost of Car Crash Above Median")) +
-   theme(legend.position="bottom")+
-    coord_flip()+
-  labs(title="Boxplot of Cost of Car Crash Above Median ~ Binary Predictors", y="Percent", x="Predictor")
+  labs(title="Boxplot of Cost of Number of Cases Purchased ~ Binary Predictors", y="Percent", x="Predictor")
 
 
 ```
@@ -517,11 +272,11 @@ possible correlations
 ```{r}
 
 
-summary_positive <- describe(training_normalized[training_normalized$TARGET_FLAG==1,c(target_bin,inputs)])[,c("mean","n")]
-summary_negative <- describe(training_normalized[training_normalized$TARGET_FLAG==0,c(target_bin,inputs)])[,c("mean","n")]
+summary_positive <- describe(training_normalized[training_normalized$TARGET_FLAG,c(target_bin,inputs)])[,c("mean","n")]
+summary_negative <- describe(training_normalized[!training_normalized$TARGET_FLAG,c(target_bin,inputs)])[,c("mean","n")]
 summary_by_target <- merge(summary_positive,summary_negative,by="row.names")
-colnames(summary_by_target) <- c("Variable","Above Median Cost of Crash - Avg","Above Median Cost of Crash - n","Below Median Cost of Crash - Avg", "Below Median Cost of Crash - n")
-summary_by_target$delta <- abs(summary_by_target[,"Above Median Cost of Crash - Avg"]-summary_by_target[,"Below Median Cost of Crash - Avg"])
+colnames(summary_by_target) <- c("Variable","Above Median Cases Purchased - Avg","Above Median Cases Purchased - n","Below Median Cases Purchased - Avg", "Below Median Cases Purchased - n")
+summary_by_target$delta <- abs(summary_by_target[,"Above Median Cases Purchased - Avg"]-summary_by_target[,"Below Median Cases Purchased - Avg"])
 
 kable(summary_by_target[order(-summary_by_target$delta),])
 
@@ -536,7 +291,7 @@ kable(summary_by_target[order(-summary_by_target$delta),])
 * run models
 
 
-```{r}
+#```{r}
 
 library(caTools)
 
@@ -558,7 +313,7 @@ MLR Full model, all variables, flag + amt
 
 The flag one looks okay here, the amt one doesn't seem to work so well.
 
-```{r}
+#```{r}
 training_target_amt <- training_trans[training_trans$TARGET_FLAG==1,]
 target_amt_model_all <- glm(TARGET_AMT~.,data=training_target_amt[,c(inputs,target_lm)])
 summary(target_amt_model_all)
@@ -570,7 +325,7 @@ model1_amt <- target_amt_model_all
 
 MLR Full model with log transformation on amt, all variables, amt only
 
-```{r}
+#```{r}
 training_target_amt$TARGET_AMT <- log(training_target_amt$TARGET_AMT)
 target_amt_model_all <- glm(TARGET_AMT~.,data=training_target_amt[,c(inputs,target_lm)])
 summary(target_amt_model_all)
@@ -582,7 +337,7 @@ model2_amt <- target_amt_model_all
 
 Manually remove variables from model 1 that weren't significant for flag. And try a version for amt that only has a few variables.
 
-```{r}
+#```{r}
 inputs_manual_amt <- inputs[c(4,24,28,36)]
 training_target_amt <- training_trans[training_trans$TARGET_FLAG==1,]
 target_amt_model_all <- glm(TARGET_AMT~.,data=training_target_amt[,c(inputs_manual_amt,target_lm)])
@@ -595,7 +350,7 @@ model3_amt = target_amt_model_all
 
 Binary Logistic Regression Baseline with all variables.
 
-```{r}
+#```{r}
 training_target_flag <- training_trans_model_bin
 target_flag_model_all <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs,target_bin)],family = binomial(link = "logit"))
 summary(target_flag_model_all)
@@ -604,7 +359,7 @@ model4_flag = target_flag_model_all
 
 #### Model 5.
 
-```{r}
+#```{r}
 inputs_manual_flag <- inputs[-c(4,5,8,9,11,13,14,15,23,26,28,30)]
 target_flag_model_all <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs_manual_flag,target_bin)],family = binomial(link = "logit"))
 summary(target_flag_model_all)
@@ -613,7 +368,7 @@ model5_flag = target_flag_model_all
 
 #### Model 6.
 
-```{r, cache=TRUE}
+#```{r, cache=TRUE}
 stepwise_flag_model <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs,target_bin)], family = binomial(link = "probit"))
 
 backward <- step(stepwise_flag_model, trace = 0)
@@ -624,7 +379,7 @@ model6_flag <- backward
 
 #### Model 7.
 
-```{r cache = TRUE}
+#```{r cache = TRUE}
 stepwise_flag_model2 <- glm(TARGET_FLAG~1,data=training_target_flag[,c(inputs,target_bin)], family = binomial(link = "probit"))
 
 forward <- step(stepwise_flag_model2, scope = list(lower=formula(stepwise_flag_model2), upper=formula(stepwise_flag_model)), direction = "forward", trace = 0)
@@ -641,19 +396,19 @@ Decide on the criteria for selecting the best multiple linear regression model a
 
 For the multiple linear regression model, will you use a metric such as Adjusted R2, RMSE, etc.? Be sure to explain how you can make inferences from the model, discuss multi-collinearity issues (if any), and discuss other relevant model output. Using the training data set, evaluate the multiple linear regression model based on (a) mean squared error, (b) R2, (c) F-statistic, and (d) residual plots. For the binary logistic regression model, will you use a metric such as log likelihood, AIC, ROC curve, etc.? Using the training data set, evaluate the binary logistic regression model based on (a) accuracy, (b) classification error rate, (c) precision, (d) sensitivity, (e) specificity, (f) F1 score, (g) AUC, and (h) confusion matrix. Make predictions using the evaluation data set.
 
-```{r}
+#```{r}
 plot(model3_amt)
 plot(model6_flag)
 ```
 
-```{r}
+#```{r}
 m3 <- summary(model3_amt)
 m6 <- summary(model6_flag)
 ```
 
 
 
-```{r}
+#```{r}
 
 
 # let's use this helper function that will return all the rates for future calculations
@@ -726,7 +481,7 @@ d_roc <- roc(training_trans_eval_bin$TARGET_FLAG,predict3)
 plot(d_roc, main = "ROC with pROC")
 ```
 
-```{r}
+#```{r}
 round(predict(forward, evaluation_trans ,type = 'response'), 4)
 round(predict(model3_amt, evaluation_trans ,type = 'response'), 4)
 ```
