@@ -56,6 +56,8 @@ kable(summary)
 
 head(training)
 summary(training)
+
+hist(training$TARGET)
 ```
 
 ```{r}
@@ -212,7 +214,35 @@ hist(training_trans[,target_lm])
 
 ##### **Transformations Implementation**
 
-No obvious transformations are identified
+Numerical Transformations:
+
+* Cap AcidicIndex at 11.8
+
+
+```{r}
+
+# Cap values
+
+d<- training_trans 
+capColumns <- function(d){
+  outputCols<- colnames(d)
+  
+
+  #* Cap AcidicIndex at 11.8
+  d[d$AcidIndex <0, 'AcidIndex'] <- 0
+  d[d$AcidIndex >=11.8, 'AcidIndex'] <- 11.8
+
+  d
+
+}
+
+training_trans <- capColumns(training_trans)
+evaluation_trans <- capColumns(evaluation_trans)
+
+
+
+
+```
 
 
 #### Final summary
@@ -485,3 +515,13 @@ plot(d_roc, main = "ROC with pROC")
 round(predict(forward, evaluation_trans ,type = 'response'), 4)
 round(predict(model3_amt, evaluation_trans ,type = 'response'), 4)
 ```
+
+x<- c(1:100)
+y <- c(unlist(lapply(x,function(x){rpois(1,x)})),unlist(lapply(x,function(x){rpois(1,x)})),unlist(lapply(x,function(x){rpois(1,x)})))
+x<- c(x,x,x)
+summary(m1 <- glm(y ~ x, family="poisson"))
+
+predict(m1,data.frame(x=c(1:10)),type = 'response')
+
+    plot(y~cut(x,50), main="y ~ x",xlab="x", ylab="TARGET")
+    plot(y~x, main="y ~ x",xlab="x", ylab="TARGET")
