@@ -117,8 +117,8 @@ transform <- function(d){
   s[is.na(s)] <- 0
   d['STARS'] <- s
 
-  d['STARS_MISSING_BIN'] <- if (s==0) {1} else {0}
-  outputCols <- c(outputCols,'STARS_MISSING_BIN')
+  #d['STARS_MISSING_BIN'] <- if (s==0) {1} else {0}
+  #outputCols <- c(outputCols,'STARS_MISSING_BIN')
 
   d['STARS_1_BIN'] <- ifelse(s==1,1,0)
   outputCols <- c(outputCols,'STARS_1_BIN')
