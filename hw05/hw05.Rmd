@@ -14,8 +14,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ## 1. DATA EXPLORATION (25 Points)
-Describe the size and the variables in the insurance training data set. Consider that too much detail will cause a
-manager to lose interest while too little detail will make the manager consider that you aren’t doing your job. Some
+
+Describe the size and the variables in the wine training data set. Consider that too much detail will cause a
+manager to lose interest while too little detail will make the manager consider that you aren't doing your job. Some
 suggestions are given below. Please do NOT treat this as a check list of things to do to complete the assignment.
 You should have your own thoughts on what to tell the boss. These are just ideas.
 
@@ -25,11 +26,11 @@ b. Bar Chart or Box Plot of the data
 
 c. Is the data correlated to the target variable (or to other variables?)
 
-d. Are any of the variables missing and need to be imputed “fixed”?
+d. Are any of the variables missing and need to be imputed "fixed"?
+
 
 ***
 
-a. Mean / Standard Deviation / Median
 
 ```{r, message=FALSE, warning=FALSE}
 require("plyr")
@@ -82,7 +83,8 @@ kable(do.call(rbind,mda))
 
 ## 2. DATA PREPARATION (25 Points)
 
-Describe how you have transformed the data by changing the original variables or creating new variables. If you did transform the data or create new variables, discuss why you did this. Here are some possible transformations.
+Describe how you have transformed the data by changing the original variables or creating new variables. If you
+did transform the data or create new variables, discuss why you did this. Here are some possible transformations.
 
 a. Fix missing values (maybe with a Mean or Median value)
 
@@ -94,7 +96,7 @@ d. Mathematical transforms such as log or square root (or use Box-Cox)
 
 e. Combine variables (such as ratios or adding or multiplying) to create new variables
 
-### Data Transformations
+***
 
 Based on the dataset description we need to:
 
@@ -102,9 +104,7 @@ Based on the dataset description we need to:
  * Impute missing values with median: ResidualSugar, Chlorides, FreeSulfurDioxide, TotalSulfurDioxide, pH, Sulphates, Alcohol
 
 
- 
 ```{r}
-
 parseStringValue <- function(v, zeroToNa){
   tmpVal <- as.numeric(gsub("[\\$,]","", v))
   if (!is.na(tmpVal) && tmpVal == 0 && zeroToNa) { NA } else {tmpVal}
@@ -145,9 +145,6 @@ target <- c(target_bin,target_lm)
 inputs_bin <- columns[grep("_BIN",columns)]
 inputs_num <- columns[!columns %in% c(target,"INDEX",inputs_bin)]
 inputs<- c(inputs_bin,inputs_num)
-
-
-
 ```
 
 ### Data Imputations/ Capping
@@ -171,7 +168,6 @@ impute <- function (d) {
 }
 training_trans<-impute(training_trans)
 evaluation_trans<-impute(evaluation_trans)
-
 ```
 
 
@@ -181,9 +177,7 @@ evaluation_trans<-impute(evaluation_trans)
 
 Let's see how the TARGET_FLAG and TARGET_NUM respond to each of the numerical features 
 
-
 ```{r}
-
 numResponse <- function(col,d){
     data <- d
     data <- data[order(data[,col]),c(col,target_lm)]
@@ -195,11 +189,8 @@ numResponse <- function(col,d){
 
 }
 
-
 sapply(inputs_num,function(x){numResponse(x,training_trans)})
 #sapply(inputs_num,function(x){numResponse(x,evaluation_trans)})
-
-
 ```
 
 
@@ -220,28 +211,20 @@ Numerical Transformations:
 
 
 ```{r}
-
 # Cap values
-
 d<- training_trans 
 capColumns <- function(d){
   outputCols<- colnames(d)
   
-
   #* Cap AcidicIndex at 11.8
   d[d$AcidIndex <0, 'AcidIndex'] <- 0
   d[d$AcidIndex >=11.8, 'AcidIndex'] <- 11.8
-
   d
 
 }
 
 training_trans <- capColumns(training_trans)
 evaluation_trans <- capColumns(evaluation_trans)
-
-
-
-
 ```
 
 
@@ -256,8 +239,6 @@ kable(summary)
 
 #head(training_trans)
 #summary(training_trans)
-
-
 ```
 
 ### How are the input values distributed?, do we need to do something about them?
@@ -271,7 +252,6 @@ Let's get a view of the normalized values:
 For our descriptive stats & intuitive understanding, let's cut  the car Number of Cases Purchased
 
 ```{r}
-
 require("reshape2")
 require("ggplot2")
 detach(package:plyr)
@@ -293,15 +273,11 @@ ggplot(bin_summary, aes(variable, pct)) +
    theme(legend.position="bottom")+
     coord_flip()+
   labs(title="Boxplot of Cost of Number of Cases Purchased ~ Binary Predictors", y="Percent", x="Predictor")
-
-
 ```
 
 possible correlations
 
 ```{r}
-
-
 summary_positive <- describe(training_normalized[training_normalized$TARGET_FLAG,c(target_bin,inputs)])[,c("mean","n")]
 summary_negative <- describe(training_normalized[!training_normalized$TARGET_FLAG,c(target_bin,inputs)])[,c("mean","n")]
 summary_by_target <- merge(summary_positive,summary_negative,by="row.names")
@@ -309,11 +285,10 @@ colnames(summary_by_target) <- c("Variable","Above Median Cases Purchased - Avg"
 summary_by_target$delta <- abs(summary_by_target[,"Above Median Cases Purchased - Avg"]-summary_by_target[,"Below Median Cases Purchased - Avg"])
 
 kable(summary_by_target[order(-summary_by_target$delta),])
-
 ```
 
 
-## TRAINIG DATASETS
+## TRAINING DATASETS
 
 #NEED TO:
 
@@ -321,21 +296,71 @@ kable(summary_by_target[order(-summary_by_target$delta),])
 * run models
 
 
-#```{r}
-
+```{r}
 library(caTools)
 
-train_rows <- sample.split(training_trans$TARGET_FLAG, SplitRatio=0.7)
+train_rows <- sample.split(training_trans$TARGET, SplitRatio=0.7)
 training_trans_model_bin <- training_trans[train_rows,]
 training_trans_eval_bin <- training_trans[-train_rows,]
-
 ```
 
 ## 3. BUILD MODELS (25 Points)
 
-Using the training data set, build at least two different multiple linear regression models and three different binary logistic regression models, using different variables (or the same variables with different transformations). You may select the variables manually, use an approach such as Forward or Stepwise, use a different approach such as trees, or use a combination of techniques. Describe the techniques you used. If you manually selected a variable for inclusion into the model or exclusion into the model, indicate why this was done.
+Using the training data set, build at least two different poisson regression models, at least two different negative
+binomial regression models, and at least two multiple linear regression models, using different variables (or the
+same variables with different transformations). Sometimes poisson and negative binomial regression models give
+the same results. If that is the case, comment on that. Consider changing the input variables if that occurs so that
+you get different models. Although not covered in class, you may also want to consider building zero-inflated
+poisson and negative binomial regression models. You may select the variables manually, use an approach such
+as Forward or Stepwise, use a different approach such as trees, or use a combination of techniques. Describe the
+techniques you used. If you manually selected a variable for inclusion into the model or exclusion into the model,
+indicate why this was done.
 
-Be sure to explain how you can make inferences from the model, as well as discuss other relevant model output. Discuss the coefficients in the models, do they make sense? Are you keeping the model even though it is counter intuitive? Why? The boss needs to know.
+Discuss the coefficients in the models, do they make sense? In this case, about the only thing you can comment
+on is the number of stars and the wine label appeal. However, you might comment on the coefficient and
+magnitude of variables and how they are similar or different from model to model. For example, you might say "pH
+seems to have a major positive impact in my poisson regression model, but a negative effect in my multiple linear
+regression model". Are you keeping the model even though it is counter intuitive? Why? The boss needs to know.
+
+
+### HW 5 Models
+```{r}
+library(MASS)
+
+#Model0 - Full Model
+poisson0 <- glm(TARGET ~ . , family = "poisson", data = training_trans)
+summary(poisson0)
+
+#Model1 - Reduced Model
+training_trans_reduced <- subset(training_trans, select = -c(FixedAcidity, CitricAcid, ResidualSugar, Density, pH))
+poisson1 <- glm(TARGET ~ . , family = "poisson", data = training_trans_reduced)
+summary(poisson1)
+
+#Model2 - Significant Reduced Model (removing even more things
+training_trans_reduced_signif <- subset(training_trans, select = -c(FixedAcidity, CitricAcid, ResidualSugar, Density, pH,
+                                                                    Chlorides, Sulphates, Alcohol))
+poisson2 <- glm(TARGET ~ . , family = "poisson", data = training_trans_reduced_signif)
+summary(poisson2)
+
+#Model3 - Negative Binomial
+neg_binomial1 <- glm.nb(TARGET ~ . , data = training_trans)
+summary(neg_binomial1)
+
+#Model4 - Negative Binomial Significant Predictors
+#neg_binomial2 <- glm.nb(TARGET ~ predictor1 + predictor2 + predictor3, data = training_trans)
+#summary(neg_binomial2)
+
+#Model5 - Multiple Linear Regression - for comparsion reduced predictors
+mlr1 <- glm(TARGET ~ . , data = training_tran)
+summary(mlr1)
+
+#Model6 - Multiple Linear Regression - for comparison significant predictors
+#mlr2<- glm(TARGET ~ predictor1 + predictor2 + predictor3 , data = training_tran)
+#summary(mlr2)
+```
+
+
+### HW4 Models (For pulling code if we need to)
 
 #### MODEL 1. 
 
@@ -348,7 +373,7 @@ training_target_amt <- training_trans[training_trans$TARGET_FLAG==1,]
 target_amt_model_all <- glm(TARGET_AMT~.,data=training_target_amt[,c(inputs,target_lm)])
 summary(target_amt_model_all)
 model1_amt <- target_amt_model_all
-```
+#```
 
 
 #### MODEL 2.
@@ -360,8 +385,7 @@ training_target_amt$TARGET_AMT <- log(training_target_amt$TARGET_AMT)
 target_amt_model_all <- glm(TARGET_AMT~.,data=training_target_amt[,c(inputs,target_lm)])
 summary(target_amt_model_all)
 model2_amt <- target_amt_model_all
-```
-
+#```
 
 #### Model 3.
 
@@ -373,7 +397,7 @@ training_target_amt <- training_trans[training_trans$TARGET_FLAG==1,]
 target_amt_model_all <- glm(TARGET_AMT~.,data=training_target_amt[,c(inputs_manual_amt,target_lm)])
 summary(target_amt_model_all)
 model3_amt = target_amt_model_all
-```
+#```
 
 
 #### Model 4.
@@ -385,7 +409,7 @@ training_target_flag <- training_trans_model_bin
 target_flag_model_all <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs,target_bin)],family = binomial(link = "logit"))
 summary(target_flag_model_all)
 model4_flag = target_flag_model_all
-```
+#```
 
 #### Model 5.
 
@@ -394,7 +418,7 @@ inputs_manual_flag <- inputs[-c(4,5,8,9,11,13,14,15,23,26,28,30)]
 target_flag_model_all <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs_manual_flag,target_bin)],family = binomial(link = "logit"))
 summary(target_flag_model_all)
 model5_flag = target_flag_model_all
-```
+#```
 
 #### Model 6.
 
@@ -405,7 +429,7 @@ backward <- step(stepwise_flag_model, trace = 0)
 predict2 <- round(predict(backward,training_trans_eval_bin , type = 'response'), 4)
 summary(backward)
 model6_flag <- backward
-```
+#```
 
 #### Model 7.
 
@@ -416,7 +440,7 @@ forward <- step(stepwise_flag_model2, scope = list(lower=formula(stepwise_flag_m
 predict3 <- round(predict(forward, training_trans_eval_bin ,type = 'response'), 4)
 summary(forward)
 model7_flag <- forward
-```
+#```
 
 
 
@@ -429,12 +453,12 @@ For the multiple linear regression model, will you use a metric such as Adjusted
 #```{r}
 plot(model3_amt)
 plot(model6_flag)
-```
+#```
 
 #```{r}
 m3 <- summary(model3_amt)
 m6 <- summary(model6_flag)
-```
+#```
 
 
 
@@ -509,12 +533,12 @@ f1_score(d)
 require("pROC")
 d_roc <- roc(training_trans_eval_bin$TARGET_FLAG,predict3)
 plot(d_roc, main = "ROC with pROC")
-```
+#```
 
 #```{r}
 round(predict(forward, evaluation_trans ,type = 'response'), 4)
 round(predict(model3_amt, evaluation_trans ,type = 'response'), 4)
-```
+#```
 
 x<- c(1:100)
 y <- c(unlist(lapply(x,function(x){rpois(1,x)})),unlist(lapply(x,function(x){rpois(1,x)})),unlist(lapply(x,function(x){rpois(1,x)})))
