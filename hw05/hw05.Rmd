@@ -351,8 +351,8 @@ summary(neg_binomial1)
 #summary(neg_binomial2)
 
 #Model5 - Multiple Linear Regression - for comparsion reduced predictors
-mlr1 <- glm(TARGET ~ . , data = training_tran)
-summary(mlr1)
+#mlr1 <- glm(TARGET ~ . , data = training_trans)
+#summary(mlr1)
 
 #Model6 - Multiple Linear Regression - for comparison significant predictors
 #mlr2<- glm(TARGET ~ predictor1 + predictor2 + predictor3 , data = training_tran)
