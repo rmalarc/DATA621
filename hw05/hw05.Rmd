@@ -324,39 +324,48 @@ regression model". Are you keeping the model even though it is counter intuitive
 
 
 ### HW 5 Models
+
 ```{r}
 library(MASS)
-
 #Model0 - Full Model
 poisson0 <- glm(TARGET ~ . , family = "poisson", data = training_trans)
 summary(poisson0)
+BIC(poisson0)
 
-#Model1 - Reduced Model
+#Model1 - Reduced Model based on Sig
 training_trans_reduced <- subset(training_trans, select = -c(FixedAcidity, CitricAcid, ResidualSugar, Density, pH))
 poisson1 <- glm(TARGET ~ . , family = "poisson", data = training_trans_reduced)
 summary(poisson1)
+BIC(poisson1)
 
-#Model2 - Significant Reduced Model (removing even more things
+#Model2 - Significant Reduced Model, got rid of even slightly insig variables
 training_trans_reduced_signif <- subset(training_trans, select = -c(FixedAcidity, CitricAcid, ResidualSugar, Density, pH,
-                                                                    Chlorides, Sulphates, Alcohol))
+                                                                    Chlorides, Sulphates, Alcohol, FreeSulfurDioxide))
 poisson2 <- glm(TARGET ~ . , family = "poisson", data = training_trans_reduced_signif)
 summary(poisson2)
+BIC(poisson2)
 
-#Model3 - Negative Binomial
-neg_binomial1 <- glm.nb(TARGET ~ . , data = training_trans)
+#Model3 - Negative Binomial - with all vars
+neg_binomial1 <- glm.nb(TARGET ~ . ,  data = training_trans)
 summary(neg_binomial1)
+BIC(neg_binomial1)
 
 #Model4 - Negative Binomial Significant Predictors
-#neg_binomial2 <- glm.nb(TARGET ~ predictor1 + predictor2 + predictor3, data = training_trans)
-#summary(neg_binomial2)
+training_trans_reduced <- subset(training_trans, select = -c(FixedAcidity, CitricAcid, ResidualSugar, Density, pH))
+neg_binomial2 <- glm.nb(TARGET ~ . ,  data = training_trans_reduced)
+summary(neg_binomial2)
+BIC(neg_binomial2)
 
 #Model5 - Multiple Linear Regression - for comparsion reduced predictors
-#mlr1 <- glm(TARGET ~ . , data = training_trans)
-#summary(mlr1)
+mlr1 <- glm(TARGET ~ . , data = training_trans)
+summary(mlr1)
+BIC(mlr1)
 
 #Model6 - Multiple Linear Regression - for comparison significant predictors
-#mlr2<- glm(TARGET ~ predictor1 + predictor2 + predictor3 , data = training_tran)
-#summary(mlr2)
+training_trans_reduced <- subset(training_trans, select = -c(FixedAcidity, CitricAcid, ResidualSugar, Density, pH))
+mlr2 <- glm(TARGET ~ . , data = training_trans_reduced)
+summary(mlr2)
+BIC(mlr2)
 ```
 
 
