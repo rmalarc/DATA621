@@ -1,0 +1,527 @@
+---
+title: "DATA621 - Wine"
+author: "Daniel Hong, Mauricio Alarcon, Maxwell Wagner"
+date: "Nov 15, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+* * * 
+
+
+## 1. DATA EXPLORATION (25 Points)
+Describe the size and the variables in the insurance training data set. Consider that too much detail will cause a
+manager to lose interest while too little detail will make the manager consider that you aren’t doing your job. Some
+suggestions are given below. Please do NOT treat this as a check list of things to do to complete the assignment.
+You should have your own thoughts on what to tell the boss. These are just ideas.
+
+a. Mean / Standard Deviation / Median
+
+b. Bar Chart or Box Plot of the data
+
+c. Is the data correlated to the target variable (or to other variables?)
+
+d. Are any of the variables missing and need to be imputed “fixed”?
+
+***
+
+a. Mean / Standard Deviation / Median
+
+```{r, message=FALSE, warning=FALSE}
+require("plyr")
+require("knitr")
+require("psych")
+# Let's load the data
+
+training <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw05/wine-training-data.csv'),stringsAsFactors = FALSE)
+metadata <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw05/wine-metadata.csv'))
+colnames(metadata) <- c("Variable", "Name Definition", "Theoretical Effect")
+evaluation <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw05/wine-evaluation-data.csv'),stringsAsFactors = FALSE)
+
+kable(metadata)
+columns <- colnames(training)
+target <- "TARGET"
+inputs <- columns[!columns %in% c(target,"INDEX")]
+
+
+summary <- describe(training[,c(target,inputs)],na.rm = TRUE)[,c("n","mean","sd","median","min","max")]
+summary$completeness <- summary$n/nrow(training)
+summary$cv <- 100*summary$sd/summary$mean
+
+kable(summary)
+
+head(training)
+summary(training)
+
+hist(training$TARGET)
+```
+
+```{r}
+# Missing Column Analysis
+missing_data <- rownames( summary[summary$completeness<1,])
+
+z.test <- function(a, mu, var){
+   zeta = (mean(a) - mu) / (sqrt(var / length(a)))
+   return(zeta)
+}
+
+mda <- lapply(missing_data, function(c) {
+  missing <- training[is.na(training[,c]),target]
+  not_missing <- training[!is.na(training[,c]),target]
+  missing_mean_z <- z.test(missing,mean(not_missing),var(not_missing))
+  missing_mean_p <- 2*pnorm(-abs(missing_mean_z))
+  data.frame(variable=c,target_mean_missing=mean(missing),target_mean_not_missing=mean(not_missing),target_mean_missing_z_score=missing_mean_z,missing_mean_p)
+})
+
+kable(do.call(rbind,mda))
+```
+
+## 2. DATA PREPARATION (25 Points)
+
+Describe how you have transformed the data by changing the original variables or creating new variables. If you did transform the data or create new variables, discuss why you did this. Here are some possible transformations.
+
+a. Fix missing values (maybe with a Mean or Median value)
+
+b. Create flags to suggest if a variable was missing
+
+c. Transform data by putting it into buckets
+
+d. Mathematical transforms such as log or square root (or use Box-Cox)
+
+e. Combine variables (such as ratios or adding or multiplying) to create new variables
+
+### Data Transformations
+
+Based on the dataset description we need to:
+
+ * Breakout STARS ordinal into STARS_MISSING, STARS_1, STARS_2, STARS_3, STARS_4
+ * Impute missing values with median: ResidualSugar, Chlorides, FreeSulfurDioxide, TotalSulfurDioxide, pH, Sulphates, Alcohol
+
+
+ 
+```{r}
+
+parseStringValue <- function(v, zeroToNa){
+  tmpVal <- as.numeric(gsub("[\\$,]","", v))
+  if (!is.na(tmpVal) && tmpVal == 0 && zeroToNa) { NA } else {tmpVal}
+}
+
+transform <- function(d){
+  outputCols<- c("TARGET","FixedAcidity","VolatileAcidity","CitricAcid","ResidualSugar","Chlorides","FreeSulfurDioxide","TotalSulfurDioxide","Density","pH","Sulphates","Alcohol","LabelAppeal","AcidIndex")
+  
+  s <- d['STARS']
+  s[is.na(s)] <- 0
+  d['STARS'] <- s
+
+  #d['STARS_MISSING_BIN'] <- if (s==0) {1} else {0}
+  #outputCols <- c(outputCols,'STARS_MISSING_BIN')
+
+  d['STARS_1_BIN'] <- ifelse(s==1,1,0)
+  outputCols <- c(outputCols,'STARS_1_BIN')
+
+  d['STARS_2_BIN'] <- ifelse(s==2,1,0)
+  outputCols <- c(outputCols,'STARS_2_BIN')
+
+  d['STARS_3_BIN'] <- ifelse(s==3,1,0)
+  outputCols <- c(outputCols,'STARS_3_BIN')
+
+  d['STARS_4_BIN'] <- ifelse(s==4,1,0)
+  outputCols <- c(outputCols,'STARS_4_BIN')
+
+  d[outputCols]
+}
+
+training_trans<-data.frame(t(rbind(apply(training,1,transform))))
+evaluation_trans<-data.frame(t(rbind(apply(evaluation,1,transform))))
+
+columns <- colnames(training_trans)
+target_bin <- c()
+target_lm <- c("TARGET")
+target <- c(target_bin,target_lm)
+inputs_bin <- columns[grep("_BIN",columns)]
+inputs_num <- columns[!columns %in% c(target,"INDEX",inputs_bin)]
+inputs<- c(inputs_bin,inputs_num)
+
+
+
+```
+
+### Data Imputations/ Capping
+
+#### Imputations
+
+ * Fill missing nummerical values with mean for: AGE, YOJ, CAR_AGE, INCOME
+ * Impute missing OLDCLAIM with zeros
+
+```{r}
+# impute
+impute <- function (d) {
+  d[is.na(d$ResidualSugar),]$ResidualSugar <- median(d$ResidualSugar,na.rm = TRUE)
+  d[is.na(d$Chlorides),]$Chlorides <- median(d$Chlorides,na.rm = TRUE)
+  d[is.na(d$FreeSulfurDioxide),]$FreeSulfurDioxide <- median(d$FreeSulfurDioxide,na.rm = TRUE)
+  d[is.na(d$TotalSulfurDioxide),]$TotalSulfurDioxide <- median(d$TotalSulfurDioxide,na.rm = TRUE)
+  d[is.na(d$pH),]$pH <- median(d$pH,na.rm = TRUE)
+  d[is.na(d$Sulphates),]$Sulphates <- median(d$Sulphates,na.rm = TRUE)
+  d[is.na(d$Alcohol),]$Alcohol <- median(d$Alcohol,na.rm = TRUE)
+  d
+}
+training_trans<-impute(training_trans)
+evaluation_trans<-impute(evaluation_trans)
+
+```
+
+
+#### Transformation Analysis Of Numerical Features
+
+##### **TARGET_FLAG**
+
+Let's see how the TARGET_FLAG and TARGET_NUM respond to each of the numerical features 
+
+
+```{r}
+
+numResponse <- function(col,d){
+    data <- d
+    data <- data[order(data[,col]),c(col,target_lm)]
+    x <- data[,col]
+    y <- data[,target_lm]
+
+    plot(y~cut(x,5), main=paste0("TARGET ~ ",col," Boxplot"),xlab=col, ylab="TARGET")
+    plot(y~x, main=paste0("TARGET ~ ",col),xlab=col, ylab="TARGET")
+
+}
+
+
+sapply(inputs_num,function(x){numResponse(x,training_trans)})
+#sapply(inputs_num,function(x){numResponse(x,evaluation_trans)})
+
+
+```
+
+
+
+
+##### **TARGET_NUM**
+
+```{r}
+hist(training_trans[,target_lm])
+```
+
+
+##### **Transformations Implementation**
+
+Numerical Transformations:
+
+* Cap AcidicIndex at 11.8
+
+
+```{r}
+
+# Cap values
+
+d<- training_trans 
+capColumns <- function(d){
+  outputCols<- colnames(d)
+  
+
+  #* Cap AcidicIndex at 11.8
+  d[d$AcidIndex <0, 'AcidIndex'] <- 0
+  d[d$AcidIndex >=11.8, 'AcidIndex'] <- 11.8
+
+  d
+
+}
+
+training_trans <- capColumns(training_trans)
+evaluation_trans <- capColumns(evaluation_trans)
+
+
+
+
+```
+
+
+#### Final summary
+
+```{r}
+summary <- describe(training_trans[,c(target,inputs)])[,c("n","mean","sd","median","min","max")]
+summary$completeness <- summary$n/nrow(training_trans)
+summary$cv <- 100*summary$sd/summary$mean
+
+kable(summary)
+
+#head(training_trans)
+#summary(training_trans)
+
+
+```
+
+### How are the input values distributed?, do we need to do something about them?
+
+Here's the distribution of the values for each of the variables
+
+Let's get a view of the normalized values:
+
+# Numerical target variable - Number of cases ordered
+
+For our descriptive stats & intuitive understanding, let's cut  the car Number of Cases Purchased
+
+```{r}
+
+require("reshape2")
+require("ggplot2")
+detach(package:plyr)
+require("dplyr")
+
+training_normalized <- cbind(data.frame(scale(training_trans[,inputs_num])),training_trans[,c(inputs_bin,target)])
+training_normalized$TARGET_FLAG <- training_normalized$TARGET > median(training_normalized$TARGET)
+
+#training_normalized$TARGET_CUT <- cut(training_normalized$TARGET,2)
+
+
+bin_summary <- melt(training_normalized[,c(inputs_bin,"TARGET_FLAG")], measure.vars = inputs_bin) %>%
+  group_by(TARGET_FLAG,variable) %>%
+  summarise(pct = sum(value)/length(value))
+
+ggplot(bin_summary, aes(variable, pct)) +   
+  geom_bar(aes(fill = TARGET_FLAG), position = "dodge", stat="identity")+
+  guides(fill=guide_legend(title="Number of Cases Purchased Above Median")) +
+   theme(legend.position="bottom")+
+    coord_flip()+
+  labs(title="Boxplot of Cost of Number of Cases Purchased ~ Binary Predictors", y="Percent", x="Predictor")
+
+
+```
+
+possible correlations
+
+```{r}
+
+
+summary_positive <- describe(training_normalized[training_normalized$TARGET_FLAG,c(target_bin,inputs)])[,c("mean","n")]
+summary_negative <- describe(training_normalized[!training_normalized$TARGET_FLAG,c(target_bin,inputs)])[,c("mean","n")]
+summary_by_target <- merge(summary_positive,summary_negative,by="row.names")
+colnames(summary_by_target) <- c("Variable","Above Median Cases Purchased - Avg","Above Median Cases Purchased - n","Below Median Cases Purchased - Avg", "Below Median Cases Purchased - n")
+summary_by_target$delta <- abs(summary_by_target[,"Above Median Cases Purchased - Avg"]-summary_by_target[,"Below Median Cases Purchased - Avg"])
+
+kable(summary_by_target[order(-summary_by_target$delta),])
+
+```
+
+
+## TRAINIG DATASETS
+
+#NEED TO:
+
+* split datasets 
+* run models
+
+
+#```{r}
+
+library(caTools)
+
+train_rows <- sample.split(training_trans$TARGET_FLAG, SplitRatio=0.7)
+training_trans_model_bin <- training_trans[train_rows,]
+training_trans_eval_bin <- training_trans[-train_rows,]
+
+```
+
+## 3. BUILD MODELS (25 Points)
+
+Using the training data set, build at least two different multiple linear regression models and three different binary logistic regression models, using different variables (or the same variables with different transformations). You may select the variables manually, use an approach such as Forward or Stepwise, use a different approach such as trees, or use a combination of techniques. Describe the techniques you used. If you manually selected a variable for inclusion into the model or exclusion into the model, indicate why this was done.
+
+Be sure to explain how you can make inferences from the model, as well as discuss other relevant model output. Discuss the coefficients in the models, do they make sense? Are you keeping the model even though it is counter intuitive? Why? The boss needs to know.
+
+#### MODEL 1. 
+
+MLR Full model, all variables, flag + amt
+
+The flag one looks okay here, the amt one doesn't seem to work so well.
+
+#```{r}
+training_target_amt <- training_trans[training_trans$TARGET_FLAG==1,]
+target_amt_model_all <- glm(TARGET_AMT~.,data=training_target_amt[,c(inputs,target_lm)])
+summary(target_amt_model_all)
+model1_amt <- target_amt_model_all
+```
+
+
+#### MODEL 2.
+
+MLR Full model with log transformation on amt, all variables, amt only
+
+#```{r}
+training_target_amt$TARGET_AMT <- log(training_target_amt$TARGET_AMT)
+target_amt_model_all <- glm(TARGET_AMT~.,data=training_target_amt[,c(inputs,target_lm)])
+summary(target_amt_model_all)
+model2_amt <- target_amt_model_all
+```
+
+
+#### Model 3.
+
+Manually remove variables from model 1 that weren't significant for flag. And try a version for amt that only has a few variables.
+
+#```{r}
+inputs_manual_amt <- inputs[c(4,24,28,36)]
+training_target_amt <- training_trans[training_trans$TARGET_FLAG==1,]
+target_amt_model_all <- glm(TARGET_AMT~.,data=training_target_amt[,c(inputs_manual_amt,target_lm)])
+summary(target_amt_model_all)
+model3_amt = target_amt_model_all
+```
+
+
+#### Model 4.
+
+Binary Logistic Regression Baseline with all variables.
+
+#```{r}
+training_target_flag <- training_trans_model_bin
+target_flag_model_all <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs,target_bin)],family = binomial(link = "logit"))
+summary(target_flag_model_all)
+model4_flag = target_flag_model_all
+```
+
+#### Model 5.
+
+#```{r}
+inputs_manual_flag <- inputs[-c(4,5,8,9,11,13,14,15,23,26,28,30)]
+target_flag_model_all <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs_manual_flag,target_bin)],family = binomial(link = "logit"))
+summary(target_flag_model_all)
+model5_flag = target_flag_model_all
+```
+
+#### Model 6.
+
+#```{r, cache=TRUE}
+stepwise_flag_model <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs,target_bin)], family = binomial(link = "probit"))
+
+backward <- step(stepwise_flag_model, trace = 0)
+predict2 <- round(predict(backward,training_trans_eval_bin , type = 'response'), 4)
+summary(backward)
+model6_flag <- backward
+```
+
+#### Model 7.
+
+#```{r cache = TRUE}
+stepwise_flag_model2 <- glm(TARGET_FLAG~1,data=training_target_flag[,c(inputs,target_bin)], family = binomial(link = "probit"))
+
+forward <- step(stepwise_flag_model2, scope = list(lower=formula(stepwise_flag_model2), upper=formula(stepwise_flag_model)), direction = "forward", trace = 0)
+predict3 <- round(predict(forward, training_trans_eval_bin ,type = 'response'), 4)
+summary(forward)
+model7_flag <- forward
+```
+
+
+
+## 4. SELECT MODELS (25 Points)
+
+Decide on the criteria for selecting the best multiple linear regression model and the best binary logistic regression model. Will you select models with slightly worse performance if it makes more sense or is more parsimonious? Discuss why you selected your models.
+
+For the multiple linear regression model, will you use a metric such as Adjusted R2, RMSE, etc.? Be sure to explain how you can make inferences from the model, discuss multi-collinearity issues (if any), and discuss other relevant model output. Using the training data set, evaluate the multiple linear regression model based on (a) mean squared error, (b) R2, (c) F-statistic, and (d) residual plots. For the binary logistic regression model, will you use a metric such as log likelihood, AIC, ROC curve, etc.? Using the training data set, evaluate the binary logistic regression model based on (a) accuracy, (b) classification error rate, (c) precision, (d) sensitivity, (e) specificity, (f) F1 score, (g) AUC, and (h) confusion matrix. Make predictions using the evaluation data set.
+
+#```{r}
+plot(model3_amt)
+plot(model6_flag)
+```
+
+#```{r}
+m3 <- summary(model3_amt)
+m6 <- summary(model6_flag)
+```
+
+
+
+#```{r}
+
+
+# let's use this helper function that will return all the rates for future calculations
+confusion_matrix <- function(d){
+  data.frame(tp=nrow(d[d$class==1 & d$scored.class==1,]),
+             tn=nrow(d[d$class==0 & d$scored.class==0,]),
+             fp=nrow(d[d$class==0 & d$scored.class==1,]),
+             fn=nrow(d[d$class==1 & d$scored.class==0,])
+  )
+}
+accuracy<-function(d){
+  f <- confusion_matrix(d)
+  (f$tp+f$tn)/(f$tp+f$fp+f$tn+f$fn)
+}
+
+classification_error_rate<-function(d){
+  f <- confusion_matrix(d)
+  (f$fp+f$fn)/(f$tp+f$fp+f$tn+f$fn)
+}
+
+precision_c<-function(d){
+  f <- confusion_matrix(d)
+  (f$tp)/(f$tp+f$fp)
+}
+
+sensitivity_c<-function(d){
+  f <- confusion_matrix(d)
+  (f$tp)/(f$tp+f$fn)
+}
+
+specificity_c<-function(d){
+  f <- confusion_matrix(d)
+  (f$tn)/(f$tn+f$fp)
+}
+
+
+f1_score<-function(d){
+  p<- precision_c(d)
+  s<- sensitivity_c(d)
+  2*p*s/(p+s)
+}
+
+#predict 2
+d<- data.frame(class=training_trans_eval_bin$TARGET_FLAG,scored.class=ifelse(predict2>0.5,1,0))
+
+confusion_matrix(d)
+accuracy(d)
+classification_error_rate(d)
+precision_c(d)
+sensitivity_c(d)
+specificity_c(d)
+f1_score(d)
+require("pROC")
+d_roc <- roc(training_trans_eval_bin$TARGET_FLAG,predict2)
+plot(d_roc, main = "ROC with pROC")
+
+
+#predict 3
+d<- data.frame(class=training_trans_eval_bin$TARGET_FLAG,scored.class=ifelse(predict3>0.5,1,0))
+
+confusion_matrix(d)
+accuracy(d)
+classification_error_rate(d)
+precision_c(d)
+sensitivity_c(d)
+specificity_c(d)
+f1_score(d)
+require("pROC")
+d_roc <- roc(training_trans_eval_bin$TARGET_FLAG,predict3)
+plot(d_roc, main = "ROC with pROC")
+```
+
+#```{r}
+round(predict(forward, evaluation_trans ,type = 'response'), 4)
+round(predict(model3_amt, evaluation_trans ,type = 'response'), 4)
+```
+
+x<- c(1:100)
+y <- c(unlist(lapply(x,function(x){rpois(1,x)})),unlist(lapply(x,function(x){rpois(1,x)})),unlist(lapply(x,function(x){rpois(1,x)})))
+x<- c(x,x,x)
+summary(m1 <- glm(y ~ x, family="poisson"))
+
+predict(m1,data.frame(x=c(1:10)),type = 'response')
+
+    plot(y~cut(x,50), main="y ~ x",xlab="x", ylab="TARGET")
+    plot(y~x, main="y ~ x",xlab="x", ylab="TARGET")
