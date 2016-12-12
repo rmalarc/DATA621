@@ -354,16 +354,54 @@ Be sure to explain how you can make inferences from the model, as well as discus
 
 ```{r}
 library(MASS)
+library(frm)
 #Model0 - Multiple Linear Regression - Base Line
-mlr1 <- glm(TARGET_NUM ~ . , data = training_trans)
+mlr1 <- glm(TARGET_NUM ~ . , data = training_trans[,-c(14,22)])
 summary(mlr1)
 BIC(mlr1)
 
-#Model1 - Multiple Linear Regression - for comparison significant predictors
+#Model1 - Multiple Linear Regression - reduced var
 training_trans_reduced <- subset(training_trans, select = c(1,2,3,5,6,9,10,11,12,16,17,28,34,35,37))
 mlr2 <- glm(TARGET_NUM ~ . , data = training_trans_reduced)
 summary(mlr2)
 BIC(mlr2)
+
+#Model2 - Poisson Full Model
+poisson0 <- glm(TARGET_NUM ~ . , family = "poisson", data = training_trans[,-c(14,22)])
+summary(poisson0)
+BIC(poisson0)
+
+#Model3 - Poisson Reduced
+training_trans_reduced <- subset(training_trans, select = c(1,2,3,5,6,9,10,11,12,16,17,28,34,35,37))
+poisson1 <- glm(TARGET_NUM ~ . , family = "poisson", data = training_trans_reduced)
+summary(poisson1)
+BIC(poisson1)
+
+#Model4 - Poisson Reduced More
+training_trans_reduced <- subset(training_trans, select = c(1,10,11,12))
+poisson2 <- glm(TARGET_NUM ~ . , family = "poisson", data = training_trans_reduced)
+summary(poisson2)
+BIC(poisson2)
+
+
+# fractional logit model, full var
+# transform the percentage to a value from 0 to 1.
+training_trans_frac <- training_trans
+training_trans_frac_target <- training_trans_frac$TARGET_NUM/100
+training_trans_frac <- training_trans_frac[,-c(1,14,22)]
+frac1 <- frm(training_trans_frac_target, training_trans_frac, linkfrac="logit")
+
+# backward stepwise
+stepwise1 <- glm(TARGET_NUM~.,data=training_trans)
+backward <- step(stepwise1, trace = 0)
+summary(backward)
+BIC(backward)
+
+#forward stepwise
+stepwise2 <- glm(TARGET_NUM~1,data=training_trans)
+forward <- step(stepwise2, scope = list(lower=formula(stepwise2), upper=formula(stepwise1)), direction = "forward", trace = 0)
+summary(forward)
+BIC(forward)
 ```
 
 
@@ -384,17 +422,13 @@ predictions using the evaluation data set.
 
 ```{r}
 table(training_trans$TARGET_NUM)
-plot(mlr2)
+plot(forward)
 ```
 
 
 
 
 ```{r}
-#predictions + sd + se
-predict2 <- round(predict(mlr2,training_trans_eval_bin , type = 'response'), 0)
-
-
 #functions for sd and se
 mysd <- function(predict, target) {
   diff_sq <- (predict - mean(target))^2
@@ -407,13 +441,37 @@ myse <- function(predict, target) {
   return(mean(sqrt(diff_sq)))
 }
 
-
-#sd
+#predictions + sd + se
+#mlr1
+predict2 <- round(predict(mlr1,training_trans_eval_bin , type = 'response'), 0)
 mysd(predict2, training_trans_eval_bin$TARGET_NUM)
-
-
-# se
 myse(predict2, training_trans_eval_bin$TARGET_NUM)
+
+#mlr2
+predict2 <- round(predict(mlr2,training_trans_eval_bin , type = 'response'), 0)
+mysd(predict2, training_trans_eval_bin$TARGET_NUM)
+myse(predict2, training_trans_eval_bin$TARGET_NUM)
+
+#poi1
+predict2 <- round(predict(poisson1,training_trans_eval_bin , type = 'response'), 0)
+mysd(predict2, training_trans_eval_bin$TARGET_NUM)
+myse(predict2, training_trans_eval_bin$TARGET_NUM)
+
+#poi2
+predict2 <- round(predict(poisson2,training_trans_eval_bin , type = 'response'), 0)
+mysd(predict2, training_trans_eval_bin$TARGET_NUM)
+myse(predict2, training_trans_eval_bin$TARGET_NUM)
+
+#backward
+predict2 <- round(predict(backward,training_trans_eval_bin , type = 'response'), 0)
+mysd(predict2, training_trans_eval_bin$TARGET_NUM)
+myse(predict2, training_trans_eval_bin$TARGET_NUM)
+
+#forward
+predict2 <- round(predict(forward,training_trans_eval_bin , type = 'response'), 0)
+mysd(predict2, training_trans_eval_bin$TARGET_NUM)
+myse(predict2, training_trans_eval_bin$TARGET_NUM)
+
 
 
 # se and sd for all these things?
@@ -423,5 +481,5 @@ colnames(qq) <- c("real", "predict")
 
 
 ```{r}
-round(predict(poisson2, evaluation_trans ,type = 'response'), 4)
+round(predict(foward, evaluation_trans ,type = 'response'), 4)
 ```
