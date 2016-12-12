@@ -338,14 +338,12 @@ kable(summary_by_target[order(-summary_by_target$delta),])
 * run models
 
 
-#```{r}
-
+```{r}
 library(caTools)
 
-train_rows <- sample.split(training_trans$TARGET_FLAG, SplitRatio=0.7)
+train_rows <- sample.split(training_trans$TARGET_NUM, SplitRatio=0.7)
 training_trans_model_bin <- training_trans[train_rows,]
 training_trans_eval_bin <- training_trans[-train_rows,]
-
 ```
 
 ## 3. BUILD MODELS (25 Points)
@@ -354,191 +352,76 @@ Using the training data set, build at least two different multiple linear regres
 
 Be sure to explain how you can make inferences from the model, as well as discuss other relevant model output. Discuss the coefficients in the models, do they make sense? Are you keeping the model even though it is counter intuitive? Why? The boss needs to know.
 
-#### MODEL 1. 
+```{r}
+library(MASS)
+#Model0 - Multiple Linear Regression - Base Line
+mlr1 <- glm(TARGET_NUM ~ . , data = training_trans)
+summary(mlr1)
+BIC(mlr1)
 
-MLR Full model, all variables, flag + amt
-
-The flag one looks okay here, the amt one doesn't seem to work so well.
-
-#```{r}
-training_target_amt <- training_trans[training_trans$TARGET_FLAG==1,]
-target_amt_model_all <- glm(TARGET_AMT~.,data=training_target_amt[,c(inputs,target_lm)])
-summary(target_amt_model_all)
-model1_amt <- target_amt_model_all
-```
-
-
-#### MODEL 2.
-
-MLR Full model with log transformation on amt, all variables, amt only
-
-#```{r}
-training_target_amt$TARGET_AMT <- log(training_target_amt$TARGET_AMT)
-target_amt_model_all <- glm(TARGET_AMT~.,data=training_target_amt[,c(inputs,target_lm)])
-summary(target_amt_model_all)
-model2_amt <- target_amt_model_all
-```
-
-
-#### Model 3.
-
-Manually remove variables from model 1 that weren't significant for flag. And try a version for amt that only has a few variables.
-
-#```{r}
-inputs_manual_amt <- inputs[c(4,24,28,36)]
-training_target_amt <- training_trans[training_trans$TARGET_FLAG==1,]
-target_amt_model_all <- glm(TARGET_AMT~.,data=training_target_amt[,c(inputs_manual_amt,target_lm)])
-summary(target_amt_model_all)
-model3_amt = target_amt_model_all
-```
-
-
-#### Model 4.
-
-Binary Logistic Regression Baseline with all variables.
-
-#```{r}
-training_target_flag <- training_trans_model_bin
-target_flag_model_all <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs,target_bin)],family = binomial(link = "logit"))
-summary(target_flag_model_all)
-model4_flag = target_flag_model_all
-```
-
-#### Model 5.
-
-#```{r}
-inputs_manual_flag <- inputs[-c(4,5,8,9,11,13,14,15,23,26,28,30)]
-target_flag_model_all <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs_manual_flag,target_bin)],family = binomial(link = "logit"))
-summary(target_flag_model_all)
-model5_flag = target_flag_model_all
-```
-
-#### Model 6.
-
-#```{r, cache=TRUE}
-stepwise_flag_model <- glm(TARGET_FLAG~.,data=training_target_flag[,c(inputs,target_bin)], family = binomial(link = "probit"))
-
-backward <- step(stepwise_flag_model, trace = 0)
-predict2 <- round(predict(backward,training_trans_eval_bin , type = 'response'), 4)
-summary(backward)
-model6_flag <- backward
-```
-
-#### Model 7.
-
-#```{r cache = TRUE}
-stepwise_flag_model2 <- glm(TARGET_FLAG~1,data=training_target_flag[,c(inputs,target_bin)], family = binomial(link = "probit"))
-
-forward <- step(stepwise_flag_model2, scope = list(lower=formula(stepwise_flag_model2), upper=formula(stepwise_flag_model)), direction = "forward", trace = 0)
-predict3 <- round(predict(forward, training_trans_eval_bin ,type = 'response'), 4)
-summary(forward)
-model7_flag <- forward
+#Model1 - Multiple Linear Regression - for comparison significant predictors
+training_trans_reduced <- subset(training_trans, select = c(1,2,3,5,6,9,10,11,12,16,17,28,34,35,37))
+mlr2 <- glm(TARGET_NUM ~ . , data = training_trans_reduced)
+summary(mlr2)
+BIC(mlr2)
 ```
 
 
 
 ## 4. SELECT MODELS (25 Points)
 
-Decide on the criteria for selecting the best multiple linear regression model and the best binary logistic regression model. Will you select models with slightly worse performance if it makes more sense or is more parsimonious? Discuss why you selected your models.
 
-For the multiple linear regression model, will you use a metric such as Adjusted R2, RMSE, etc.? Be sure to explain how you can make inferences from the model, discuss multi-collinearity issues (if any), and discuss other relevant model output. Using the training data set, evaluate the multiple linear regression model based on (a) mean squared error, (b) R2, (c) F-statistic, and (d) residual plots. For the binary logistic regression model, will you use a metric such as log likelihood, AIC, ROC curve, etc.? Using the training data set, evaluate the binary logistic regression model based on (a) accuracy, (b) classification error rate, (c) precision, (d) sensitivity, (e) specificity, (f) F1 score, (g) AUC, and (h) confusion matrix. Make predictions using the evaluation data set.
+Decide on the criteria for selecting the best count regression model. Will you select models with slightly worse
+performance if it makes more sense or is more parsimonious? Discuss why you selected your models.
 
-#```{r}
-plot(model3_amt)
-plot(model6_flag)
+
+For the count regression model, will you use a metric such as AIC, average squared error, etc.? Be sure to
+explain how you can make inferences from the model, and discuss other relevant model output. If you like the
+multiple linear regression model the best, please say why. However, you must select a count regression model for
+model deployment. Using the training data set, evaluate the performance of the count regression model. Make
+predictions using the evaluation data set.
+
+
+```{r}
+table(training_trans$TARGET_NUM)
+plot(mlr2)
 ```
 
-#```{r}
-m3 <- summary(model3_amt)
-m6 <- summary(model6_flag)
+
+
+
+```{r}
+#predictions + sd + se
+predict2 <- round(predict(mlr2,training_trans_eval_bin , type = 'response'), 0)
+
+
+#functions for sd and se
+mysd <- function(predict, target) {
+  diff_sq <- (predict - mean(target))^2
+  return(mean(sqrt(diff_sq)))
+}
+
+
+myse <- function(predict, target) {
+  diff_sq <- (predict - target)^2
+  return(mean(sqrt(diff_sq)))
+}
+
+
+#sd
+mysd(predict2, training_trans_eval_bin$TARGET_NUM)
+
+
+# se
+myse(predict2, training_trans_eval_bin$TARGET_NUM)
+
+
+# se and sd for all these things?
+qq <- data.frame(cbind(training_trans_eval_bin$TARGET_NUM, predict2))
+colnames(qq) <- c("real", "predict")
 ```
 
 
-
-#```{r}
-
-
-# let's use this helper function that will return all the rates for future calculations
-confusion_matrix <- function(d){
-  data.frame(tp=nrow(d[d$class==1 & d$scored.class==1,]),
-             tn=nrow(d[d$class==0 & d$scored.class==0,]),
-             fp=nrow(d[d$class==0 & d$scored.class==1,]),
-             fn=nrow(d[d$class==1 & d$scored.class==0,])
-  )
-}
-accuracy<-function(d){
-  f <- confusion_matrix(d)
-  (f$tp+f$tn)/(f$tp+f$fp+f$tn+f$fn)
-}
-
-classification_error_rate<-function(d){
-  f <- confusion_matrix(d)
-  (f$fp+f$fn)/(f$tp+f$fp+f$tn+f$fn)
-}
-
-precision_c<-function(d){
-  f <- confusion_matrix(d)
-  (f$tp)/(f$tp+f$fp)
-}
-
-sensitivity_c<-function(d){
-  f <- confusion_matrix(d)
-  (f$tp)/(f$tp+f$fn)
-}
-
-specificity_c<-function(d){
-  f <- confusion_matrix(d)
-  (f$tn)/(f$tn+f$fp)
-}
-
-
-f1_score<-function(d){
-  p<- precision_c(d)
-  s<- sensitivity_c(d)
-  2*p*s/(p+s)
-}
-
-#predict 2
-d<- data.frame(class=training_trans_eval_bin$TARGET_FLAG,scored.class=ifelse(predict2>0.5,1,0))
-
-confusion_matrix(d)
-accuracy(d)
-classification_error_rate(d)
-precision_c(d)
-sensitivity_c(d)
-specificity_c(d)
-f1_score(d)
-require("pROC")
-d_roc <- roc(training_trans_eval_bin$TARGET_FLAG,predict2)
-plot(d_roc, main = "ROC with pROC")
-
-
-#predict 3
-d<- data.frame(class=training_trans_eval_bin$TARGET_FLAG,scored.class=ifelse(predict3>0.5,1,0))
-
-confusion_matrix(d)
-accuracy(d)
-classification_error_rate(d)
-precision_c(d)
-sensitivity_c(d)
-specificity_c(d)
-f1_score(d)
-require("pROC")
-d_roc <- roc(training_trans_eval_bin$TARGET_FLAG,predict3)
-plot(d_roc, main = "ROC with pROC")
+```{r}
+round(predict(poisson2, evaluation_trans ,type = 'response'), 4)
 ```
-
-#```{r}
-round(predict(forward, evaluation_trans ,type = 'response'), 4)
-round(predict(model3_amt, evaluation_trans ,type = 'response'), 4)
-```
-
-x<- c(1:100)
-y <- c(unlist(lapply(x,function(x){rpois(1,x)})),unlist(lapply(x,function(x){rpois(1,x)})),unlist(lapply(x,function(x){rpois(1,x)})))
-x<- c(x,x,x)
-summary(m1 <- glm(y ~ x, family="poisson"))
-
-predict(m1,data.frame(x=c(1:10)),type = 'response')
-
-    plot(y~cut(x,50), main="y ~ x",xlab="x", ylab="TARGET")
-    plot(y~x, main="y ~ x",xlab="x", ylab="TARGET")

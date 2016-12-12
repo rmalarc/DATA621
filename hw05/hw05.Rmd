@@ -455,106 +455,82 @@ model7_flag <- forward
 
 ## 4. SELECT MODELS (25 Points)
 
-Decide on the criteria for selecting the best multiple linear regression model and the best binary logistic regression model. Will you select models with slightly worse performance if it makes more sense or is more parsimonious? Discuss why you selected your models.
 
-For the multiple linear regression model, will you use a metric such as Adjusted R2, RMSE, etc.? Be sure to explain how you can make inferences from the model, discuss multi-collinearity issues (if any), and discuss other relevant model output. Using the training data set, evaluate the multiple linear regression model based on (a) mean squared error, (b) R2, (c) F-statistic, and (d) residual plots. For the binary logistic regression model, will you use a metric such as log likelihood, AIC, ROC curve, etc.? Using the training data set, evaluate the binary logistic regression model based on (a) accuracy, (b) classification error rate, (c) precision, (d) sensitivity, (e) specificity, (f) F1 score, (g) AUC, and (h) confusion matrix. Make predictions using the evaluation data set.
-
-#```{r}
-plot(model3_amt)
-plot(model6_flag)
-#```
-
-#```{r}
-m3 <- summary(model3_amt)
-m6 <- summary(model6_flag)
-#```
+Decide on the criteria for selecting the best count regression model. Will you select models with slightly worse
+performance if it makes more sense or is more parsimonious? Discuss why you selected your models.
 
 
+For the count regression model, will you use a metric such as AIC, average squared error, etc.? Be sure to
+explain how you can make inferences from the model, and discuss other relevant model output. If you like the
+multiple linear regression model the best, please say why. However, you must select a count regression model for
+model deployment. Using the training data set, evaluate the performance of the count regression model. Make
+predictions using the evaluation data set.
 
-#```{r}
+
+```{r}
+table(training_trans$TARGET)
+plot(poisson2)
+```
 
 
-# let's use this helper function that will return all the rates for future calculations
-confusion_matrix <- function(d){
-  data.frame(tp=nrow(d[d$class==1 & d$scored.class==1,]),
-             tn=nrow(d[d$class==0 & d$scored.class==0,]),
-             fp=nrow(d[d$class==0 & d$scored.class==1,]),
-             fn=nrow(d[d$class==1 & d$scored.class==0,])
-  )
-}
-accuracy<-function(d){
-  f <- confusion_matrix(d)
-  (f$tp+f$tn)/(f$tp+f$fp+f$tn+f$fn)
-}
 
-classification_error_rate<-function(d){
-  f <- confusion_matrix(d)
-  (f$fp+f$fn)/(f$tp+f$fp+f$tn+f$fn)
-}
 
-precision_c<-function(d){
-  f <- confusion_matrix(d)
-  (f$tp)/(f$tp+f$fp)
-}
+```{r}
+#predictions + sd + se
+predict2 <- round(predict(poisson2,training_trans_eval_bin , type = 'response'), 4)
 
-sensitivity_c<-function(d){
-  f <- confusion_matrix(d)
-  (f$tp)/(f$tp+f$fn)
-}
 
-specificity_c<-function(d){
-  f <- confusion_matrix(d)
-  (f$tn)/(f$tn+f$fp)
+#functions for sd and se
+mysd <- function(predict, target) {
+  diff_sq <- (predict - mean(target))^2
+  return(mean(sqrt(diff_sq)))
 }
 
 
-f1_score<-function(d){
-  p<- precision_c(d)
-  s<- sensitivity_c(d)
-  2*p*s/(p+s)
+myse <- function(predict, target) {
+  diff_sq <- (predict - target)^2
+  return(mean(sqrt(diff_sq)))
 }
 
-#predict 2
-d<- data.frame(class=training_trans_eval_bin$TARGET_FLAG,scored.class=ifelse(predict2>0.5,1,0))
 
-confusion_matrix(d)
-accuracy(d)
-classification_error_rate(d)
-precision_c(d)
-sensitivity_c(d)
-specificity_c(d)
-f1_score(d)
-require("pROC")
-d_roc <- roc(training_trans_eval_bin$TARGET_FLAG,predict2)
-plot(d_roc, main = "ROC with pROC")
+#sd
+mysd(predict2, training_trans_eval_bin$TARGET)
 
 
-#predict 3
-d<- data.frame(class=training_trans_eval_bin$TARGET_FLAG,scored.class=ifelse(predict3>0.5,1,0))
+# se
+myse(predict2, training_trans_eval_bin$TARGET)
 
-confusion_matrix(d)
-accuracy(d)
-classification_error_rate(d)
-precision_c(d)
-sensitivity_c(d)
-specificity_c(d)
-f1_score(d)
-require("pROC")
-d_roc <- roc(training_trans_eval_bin$TARGET_FLAG,predict3)
-plot(d_roc, main = "ROC with pROC")
-#```
 
-#```{r}
-round(predict(forward, evaluation_trans ,type = 'response'), 4)
-round(predict(model3_amt, evaluation_trans ,type = 'response'), 4)
-#```
+# se and sd for all these things?
+qq <- data.frame(cbind(training_trans_eval_bin$TARGET, predict2))
+colnames(qq) <- c("real", "predict")
 
-x<- c(1:100)
-y <- c(unlist(lapply(x,function(x){rpois(1,x)})),unlist(lapply(x,function(x){rpois(1,x)})),unlist(lapply(x,function(x){rpois(1,x)})))
-x<- c(x,x,x)
-summary(m1 <- glm(y ~ x, family="poisson"))
 
-predict(m1,data.frame(x=c(1:10)),type = 'response')
+qq0 <- qq[which(qq$real == 0),]
+qq1 <- qq[which(qq$real == 1),]
+qq2 <- qq[which(qq$real == 2),]
+qq3 <- qq[which(qq$real == 3),]
+qq4 <- qq[which(qq$real == 4),]
+qq5 <- qq[which(qq$real == 5),]
+qq6 <- qq[which(qq$real == 6),]
+qq7 <- qq[which(qq$real == 7),]
+qq8 <- qq[which(qq$real == 8),]
 
-    plot(y~cut(x,50), main="y ~ x",xlab="x", ylab="TARGET")
-    plot(y~x, main="y ~ x",xlab="x", ylab="TARGET")
+
+rbind(
+      myse(qq0$predict, qq0$real),
+      myse(qq1$predict, qq1$real),
+      myse(qq2$predict, qq2$real),
+      myse(qq3$predict, qq3$real),
+      myse(qq4$predict, qq4$real),
+      myse(qq5$predict, qq5$real),
+      myse(qq6$predict, qq6$real),
+      myse(qq7$predict, qq7$real),
+      myse(qq8$predict, qq8$real)
+      )
+```
+
+
+```{r}
+round(predict(poisson2, evaluation_trans ,type = 'response'), 4)
+```
