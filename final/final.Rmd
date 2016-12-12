@@ -283,7 +283,7 @@ Here's the distribution of the values for each of the variables
 
 Let's get a view of the normalized values:
 
-# Numerical target variable - RECOMEND HOSPITAL
+# Numerical target variable - RECOMMEND HOSPITAL
 
 For our descriptive stats & intuitive understanding, let's cut  the car Number of Cases Purchased
 
@@ -306,10 +306,10 @@ bin_summary <- melt(training_normalized[,c(inputs_bin,"TARGET_FLAG")], measure.v
 
 ggplot(bin_summary, aes(variable, pct)) +   
   geom_bar(aes(fill = TARGET_FLAG), position = "dodge", stat="identity")+
-  guides(fill=guide_legend(title="Recomend Hospital Above Median")) +
+  guides(fill=guide_legend(title="Recommend Hospital Above Median")) +
    theme(legend.position="bottom")+
     coord_flip()+
-  labs(title="Boxplot of Recomend Hospital ~ Binary Predictors", y="Percent", x="Predictor")
+  labs(title="Boxplot of Recommend Hospital ~ Binary Predictors", y="Percent", x="Predictor")
 
 
 ```
@@ -322,8 +322,8 @@ possible correlations
 summary_positive <- describe(training_normalized[training_normalized$TARGET_FLAG,c(inputs)])[,c("mean","n")]
 summary_negative <- describe(training_normalized[!training_normalized$TARGET_FLAG,c(inputs)])[,c("mean","n")]
 summary_by_target <- merge(summary_positive,summary_negative,by="row.names")
-colnames(summary_by_target) <- c("Variable","Above Median Recomend Hospital - Avg","Above Median Recomend Hospital - n","Below Median Recomend Hospital - Avg", "Below Median Recomend Hospital - n")
-summary_by_target$delta <- abs(summary_by_target[,"Above Median Recomend Hospital - Avg"]-summary_by_target[,"Below Median Recomend Hospital - Avg"])
+colnames(summary_by_target) <- c("Variable","Above Median Recommend Hospital - Avg","Above Median Recommend Hospital - n","Below Median Recommend Hospital - Avg", "Below Median Recommend Hospital - n")
+summary_by_target$delta <- abs(summary_by_target[,"Above Median Recommend Hospital - Avg"]-summary_by_target[,"Below Median Recommend Hospital - Avg"])
 
 kable(summary_by_target[order(-summary_by_target$delta),])
 
