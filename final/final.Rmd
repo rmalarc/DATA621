@@ -1,5 +1,5 @@
 ---
-title: "DATA621 - Wine"
+title: "DATA621 - Hospitals"
 author: "Daniel Hong, Mauricio Alarcon, Maxwell Wagner"
 date: "Nov 15, 2016"
 output: html_document
@@ -14,6 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ## 1. DATA EXPLORATION (25 Points)
+
 Describe the size and the variables in the insurance training data set. Consider that too much detail will cause a
 manager to lose interest while too little detail will make the manager consider that you aren’t doing your job. Some
 suggestions are given below. Please do NOT treat this as a check list of things to do to complete the assignment.
@@ -32,20 +33,84 @@ d. Are any of the variables missing and need to be imputed “fixed”?
 a. Mean / Standard Deviation / Median
 
 ```{r, message=FALSE, warning=FALSE}
-require("plyr")
+#require("plyr")
 require("knitr")
 require("psych")
 # Let's load the data
+#detach(package:plyr)
+require("dplyr")
+coalesce <- function(...) {
+  apply(cbind(...), 1, function(x) {
+          x[which(!is.na(x))[1]]
+        })
+}
 
-training <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw05/wine-training-data.csv'),stringsAsFactors = FALSE)
-metadata <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw05/wine-metadata.csv'))
-colnames(metadata) <- c("Variable", "Name Definition", "Theoretical Effect")
-evaluation <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/hw05/wine-evaluation-data.csv'),stringsAsFactors = FALSE)
+hcahps <- rbind(read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/final/HCAHPS - Hospital.csv'),stringsAsFactors = FALSE),read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/final/HCAHPS - Hospital2.csv'),stringsAsFactors = FALSE))
 
-kable(metadata)
+unique(hcahps$HCAHPS.Question)
+
+unique(unlist(c(hcahps$Patient.Survey.Star.Rating.Footnote,hcahps$HCAHPS.Answer.Percent.Footnote,hcahps$Survey.Response.Rate.Percent.Footnote,hcahps$Number.of.Completed.Surveys.Footnote)))
+
+
+hcahps_lms <- hcahps[grep("(linear mean score)",hcahps$HCAHPS.Question),] #|Summary star rating
+hcahps_lms$v <- coalesce(as.numeric(hcahps_lms$Patient.Survey.Star.Rating),as.numeric(hcahps_lms$HCAHPS.Linear.Mean.Value)) #,as.numeric(hcahps$HCAHPS.Answer.Percent),
+
+hcahps_wide<-reshape(hcahps_lms[,c("Provider.ID", "Survey.Response.Rate.Percent","HCAHPS.Question","v")], 
+  timevar = "HCAHPS.Question",
+  idvar = c("Provider.ID", "Survey.Response.Rate.Percent"),
+  direction = "wide")
+#hcahps_wide<-hcahps_wide[complete.cases(hcahps_wide),]
+
+#hist(hcahps_wide$`v.Summary star rating`,main="Summary Star Rating")
+#mean(hcahps_wide$`v.Summary star rating`,na.rm = T)
+#sd(hcahps_wide$`v.Summary star rating`,na.rm = T)
+
+hist(hcahps_wide$`v.Recommend hospital - linear mean score`,main="Recommend Hospital - Linear Mean Score")
+mean(hcahps_wide$`v.Recommend hospital - linear mean score`,na.rm = T)
+sd(hcahps_wide$`v.Recommend hospital - linear mean score`,na.rm = T)
+
+general_info <- read.csv(url('https://raw.githubusercontent.com/rmalarc/DATA621/master/final/Hospital General Information.csv'),stringsAsFactors = FALSE)
+
+colnames(general_info)
+summary(general_info)
+
+sapply(general_info[,c("Hospital.Type"
+,"Hospital.Ownership"
+,"Emergency.Services"
+,"Hospital.overall.rating"
+,"Mortality.national.comparison"
+,"Safety.of.care.national.comparison"
+,"Readmission.national.comparison"
+,"Effectiveness.of.care.national.comparison"
+,"Timeliness.of.care.national.comparison"
+,"Efficient.use.of.medical.imaging.national.comparison")], unique)
+
+training <- merge(hcahps_wide, general_info[,c("Provider.ID"
+,"Hospital.Type"
+,"Hospital.Ownership"
+,"Emergency.Services"
+,"Hospital.overall.rating"
+,"Mortality.national.comparison"
+,"Safety.of.care.national.comparison"
+,"Readmission.national.comparison"
+,"Effectiveness.of.care.national.comparison"
+,"Timeliness.of.care.national.comparison"
+,"Efficient.use.of.medical.imaging.national.comparison")], by="Provider.ID")
+
+sapply(general_info, function(x){length(x[x=="Not Available"])})
+
+training$Hospital.overall.rating <- ifelse(training$Hospital.overall.rating=="Not Available",NA,training$Hospital.overall.rating)
+training$Mortality.national.comparison <- ifelse(training$Mortality.national.comparison=="Not Available",NA,training$Mortality.national.comparison)
+training$Safety.of.care.national.comparison <- ifelse(training$Safety.of.care.national.comparison=="Not Available",NA,training$Safety.of.care.national.comparison)
+training$Readmission.national.comparison <- ifelse(training$Readmission.national.comparison=="Not Available",NA,training$Readmission.national.comparison)
+training$Effectiveness.of.care.national.comparison <- ifelse(training$Effectiveness.of.care.national.comparison=="Not Available",NA,training$Effectiveness.of.care.national.comparison)
+training$Timeliness.of.care.national.comparison <- ifelse(training$Timeliness.of.care.national.comparison=="Not Available",NA,training$Timeliness.of.care.national.comparison)
+training$Efficient.use.of.medical.imaging.national.comparison <- ifelse(training$Efficient.use.of.medical.imaging.national.comparison=="Not Available",NA,training$Efficient.use.of.medical.imaging.national.comparison)
+
+
 columns <- colnames(training)
-target <- "TARGET"
-inputs <- columns[!columns %in% c(target,"INDEX")]
+target <- c("v.Recommend hospital - linear mean score") #"v.Summary star rating",
+inputs <- columns[!columns %in% c(target,"Provider.ID")]
 
 
 summary <- describe(training[,c(target,inputs)],na.rm = TRUE)[,c("n","mean","sd","median","min","max")]
@@ -57,28 +122,9 @@ kable(summary)
 head(training)
 summary(training)
 
-hist(training$TARGET)
+
 ```
 
-```{r}
-# Missing Column Analysis
-missing_data <- rownames( summary[summary$completeness<1,])
-
-z.test <- function(a, mu, var){
-   zeta = (mean(a) - mu) / (sqrt(var / length(a)))
-   return(zeta)
-}
-
-mda <- lapply(missing_data, function(c) {
-  missing <- training[is.na(training[,c]),target]
-  not_missing <- training[!is.na(training[,c]),target]
-  missing_mean_z <- z.test(missing,mean(not_missing),var(not_missing))
-  missing_mean_p <- 2*pnorm(-abs(missing_mean_z))
-  data.frame(variable=c,target_mean_missing=mean(missing),target_mean_not_missing=mean(not_missing),target_mean_missing_z_score=missing_mean_z,missing_mean_p)
-})
-
-kable(do.call(rbind,mda))
-```
 
 ## 2. DATA PREPARATION (25 Points)
 
@@ -96,90 +142,93 @@ e. Combine variables (such as ratios or adding or multiplying) to create new var
 
 ### Data Transformations
 
-Based on the dataset description we need to:
-
- * Breakout STARS ordinal into STARS_MISSING, STARS_1, STARS_2, STARS_3, STARS_4
- * Impute missing values with median: ResidualSugar, Chlorides, FreeSulfurDioxide, TotalSulfurDioxide, pH, Sulphates, Alcohol
 
 
  
 ```{r}
 
-parseStringValue <- function(v, zeroToNa){
-  tmpVal <- as.numeric(gsub("[\\$,]","", v))
-  if (!is.na(tmpVal) && tmpVal == 0 && zeroToNa) { NA } else {tmpVal}
-}
+training<-training[complete.cases(training),]
 
 transform <- function(d){
-  outputCols<- c("TARGET","FixedAcidity","VolatileAcidity","CitricAcid","ResidualSugar","Chlorides","FreeSulfurDioxide","TotalSulfurDioxide","Density","pH","Sulphates","Alcohol","LabelAppeal","AcidIndex")
+  d['TARGET_NUM'] <- as.numeric(d["v.Recommend hospital - linear mean score"])
+  d['SURVEY_RESPONSE_RATE'] <- as.numeric(d["Survey.Response.Rate.Percent"])
+  d['CLEANLINESS'] <- as.numeric(d["v.Cleanliness - linear mean score"])
+  d['NURSE_COMMUNICATION'] <- as.numeric(d["v.Nurse communication - linear mean score"])
+  d['DOCTOR_COMMUNICATION'] <- as.numeric(d["v.Doctor communication - linear mean score"])
+  d['STAFF_RESPONSIVENESS'] <- as.numeric(d["v.Staff responsiveness - linear mean score"])
+  d['PAIN_MANAGEMENT'] <- as.numeric(d["v.Pain management - linear mean score"])
+  d['MEDICATION_COMMUNICATION'] <- as.numeric(d["v.Communication about medicines - linear mean score"])
+  d['DISCHARGE_INFO'] <- as.numeric(d["v.Discharge information - linear mean score"])
+  d['CARE_TRANSITION'] <- as.numeric(d["v.Care transition - linear mean score"])
+  d['HOSPITAL_RATING'] <- as.numeric(d["v.Overall hospital rating - linear mean score"])
+  d['QUIETNESS'] <- as.numeric(d["v.Quietness - linear mean score"])
+  outputCols<- c('TARGET_NUM','SURVEY_RESPONSE_RATE','CLEANLINESS','NURSE_COMMUNICATION','DOCTOR_COMMUNICATION','STAFF_RESPONSIVENESS','PAIN_MANAGEMENT','MEDICATION_COMMUNICATION','DISCHARGE_INFO','CARE_TRANSITION','HOSPITAL_RATING','QUIETNESS')
   
-  s <- d['STARS']
-  s[is.na(s)] <- 0
-  d['STARS'] <- s
+  #d['TYPE_ACUTE_CARE_HOSPITALS_BIN'] <- if (d['Hospital.Type']=="Acute Care Hospitals") {1} else {0}
+  #outputCols <- c(outputCols,'TYPE_ACUTE_CARE_HOSPITALS_BIN')
+  
+  d['TYPE_CRITICAL_ACCESS_HOSPITALS_BIN'] <- if (d['Hospital.Type']=="Critical Access Hospitals") {1} else {0}
+  outputCols <- c(outputCols,'TYPE_CRITICAL_ACCESS_HOSPITALS_BIN')
 
-  #d['STARS_MISSING_BIN'] <- if (s==0) {1} else {0}
-  #outputCols <- c(outputCols,'STARS_MISSING_BIN')
-
-  d['STARS_1_BIN'] <- ifelse(s==1,1,0)
-  outputCols <- c(outputCols,'STARS_1_BIN')
-
-  d['STARS_2_BIN'] <- ifelse(s==2,1,0)
-  outputCols <- c(outputCols,'STARS_2_BIN')
-
-  d['STARS_3_BIN'] <- ifelse(s==3,1,0)
-  outputCols <- c(outputCols,'STARS_3_BIN')
-
-  d['STARS_4_BIN'] <- ifelse(s==4,1,0)
-  outputCols <- c(outputCols,'STARS_4_BIN')
-
-  d[outputCols]
+  d['TYPE_CHILDRENS_BIN'] <- if (d['Hospital.Type']=="Childrens") {1} else {0}
+  outputCols <- c(outputCols,'TYPE_CHILDRENS_BIN')
+  
+  #d['OWNERSHIP_GOV_DISTRICT_BIN'] <- if (d['Hospital.Ownership']=="Government - Hospital District or Authority") {1} else {0}
+  d['OWNERSHIP_PRIVATE_BIN'] <- if (d['Hospital.Ownership']=="Voluntary non-profit - Private") {1} else {0}
+  d['OWNERSHIP_PROPRIETARY_BIN'] <- if (d['Hospital.Ownership']=="Proprietary") {1} else {0}
+  d['OWNERSHIP_GOV_STATE_BIN'] <- if (d['Hospital.Ownership']=="Government - State") {1} else {0}
+  d['OWNERSHIP_OTHER_BIN'] <- if (d['Hospital.Ownership']=="Voluntary non-profit - Other") {1} else {0}
+  d['OWNERSHIP_GOV_LOCAL_BIN'] <- if (d['Hospital.Ownership']=="Government - Local") {1} else {0}
+  d['OWNERSHIP_CHURCH_BIN'] <- if (d['Hospital.Ownership']=="Voluntary non-profit - Church") {1} else {0}
+  d['OWNERSHIP_GOV_FEDERAL_BIN'] <- if (d['Hospital.Ownership']=="Government - Federal") {1} else {0}
+  d['OWNERSHIP_TRIBAL_BIN'] <- if (d['Hospital.Ownership']=="Tribal") {1} else {0}
+  d['OWNERSHIP_PHYSICIAN_BIN'] <- if (d['Hospital.Ownership']=="Physician") {1} else {0}
+  outputCols <- c(outputCols,'OWNERSHIP_PRIVATE_BIN','OWNERSHIP_PROPRIETARY_BIN','OWNERSHIP_GOV_STATE_BIN','OWNERSHIP_OTHER_BIN','OWNERSHIP_GOV_LOCAL_BIN','OWNERSHIP_CHURCH_BIN','OWNERSHIP_GOV_FEDERAL_BIN','OWNERSHIP_TRIBAL_BIN','OWNERSHIP_PHYSICIAN_BIN')
+  
+  d['EMERGENCY_SVC_BIN'] <- if (d['Emergency.Services']=='Yes') {1} else {0}
+  outputCols <- c(outputCols,'EMERGENCY_SVC_BIN')
+  
+  d['HOSPITAL_OVERALL_RTG'] <- as.numeric(d['Hospital.overall.rating'])
+  outputCols <- c(outputCols,'HOSPITAL_OVERALL_RTG')
+  
+  d['MORTALITY_SAME_NTL_BIN'] <- if (d['Mortality.national.comparison']=="Same as the National average") {1} else {0}
+  d['MORTALITY_ABOVE_NTL_BIN'] <- if (d['Mortality.national.comparison']=="Above the National average") {1} else {0}
+  d['SAFETY_OF_CARE_SAME_NTL_BIN'] <- if (d['Safety.of.care.national.comparison']=="Same as the National average") {1} else {0}
+  d['SAFETY_OF_CARE_ABOVE_NTL_BIN'] <- if (d['Safety.of.care.national.comparison']=="Above the National average") {1} else {0}
+  d['READM_SAME_NTL_BIN'] <- if (d['Readmission.national.comparison']=="Same as the National average") {1} else {0}
+  d['READM_ABOVE_NTL_BIN'] <- if (d['Readmission.national.comparison']=="Above the National average") {1} else {0}
+  d['EFFECTIVENESS_OF_CARE_SAME_NTL_BIN'] <- if (d['Effectiveness.of.care.national.comparison']=="Same as the National average") {1} else {0}
+  d['EFFECTIVENESS_OF_CARE_ABOVE_NTL_BIN'] <- if (d['Effectiveness.of.care.national.comparison']=="Above the National average") {1} else {0}
+  d['TIMELINESS_OF_CARE_SAME_NTL_BIN'] <- if (d['Timeliness.of.care.national.comparison']=="Same as the National average") {1} else {0}
+  d['TIMELINESS_OF_CARE_ABOVE_NTL_BIN'] <- if (d['Timeliness.of.care.national.comparison']=="Above the National average") {1} else {0}
+  d['EFFICIENCY_OF_USE_MEDICAL_IMAGING_EQUIPMENT_SAME_NTL_BIN'] <- if (d['Efficient.use.of.medical.imaging.national.comparison']=="Same as the National average") {1} else {0}
+  d['EFFICIENCY_OF_USE_MEDICAL_IMAGING_EQUIPMENT_ABOVE_NTL_BIN'] <- if (d['Efficient.use.of.medical.imaging.national.comparison']=="Above the National average") {1} else {0}
+  outputCols <- c(outputCols,'MORTALITY_SAME_NTL_BIN','MORTALITY_ABOVE_NTL_BIN','SAFETY_OF_CARE_SAME_NTL_BIN','SAFETY_OF_CARE_ABOVE_NTL_BIN','READM_SAME_NTL_BIN','READM_ABOVE_NTL_BIN','EFFECTIVENESS_OF_CARE_SAME_NTL_BIN','EFFECTIVENESS_OF_CARE_ABOVE_NTL_BIN','TIMELINESS_OF_CARE_SAME_NTL_BIN','TIMELINESS_OF_CARE_ABOVE_NTL_BIN','EFFICIENCY_OF_USE_MEDICAL_IMAGING_EQUIPMENT_SAME_NTL_BIN','EFFICIENCY_OF_USE_MEDICAL_IMAGING_EQUIPMENT_ABOVE_NTL_BIN')
+  r<- as.numeric(d[outputCols])
+  names(r) <- outputCols
+  r
 }
 
 training_trans<-data.frame(t(rbind(apply(training,1,transform))))
-evaluation_trans<-data.frame(t(rbind(apply(evaluation,1,transform))))
 
 columns <- colnames(training_trans)
-target_bin <- c()
-target_lm <- c("TARGET")
-target <- c(target_bin,target_lm)
+target <- "TARGET_NUM"
+target_lm <- target
 inputs_bin <- columns[grep("_BIN",columns)]
-inputs_num <- columns[!columns %in% c(target,"INDEX",inputs_bin)]
+inputs_num <- columns[!columns %in% c(target,inputs_bin)]
 inputs<- c(inputs_bin,inputs_num)
 
 
 
 ```
 
-### Data Imputations/ Capping
-
-#### Imputations
-
- * Fill missing nummerical values with mean for: AGE, YOJ, CAR_AGE, INCOME
- * Impute missing OLDCLAIM with zeros
-
-```{r}
-# impute
-impute <- function (d) {
-  d[is.na(d$ResidualSugar),]$ResidualSugar <- median(d$ResidualSugar,na.rm = TRUE)
-  d[is.na(d$Chlorides),]$Chlorides <- median(d$Chlorides,na.rm = TRUE)
-  d[is.na(d$FreeSulfurDioxide),]$FreeSulfurDioxide <- median(d$FreeSulfurDioxide,na.rm = TRUE)
-  d[is.na(d$TotalSulfurDioxide),]$TotalSulfurDioxide <- median(d$TotalSulfurDioxide,na.rm = TRUE)
-  d[is.na(d$pH),]$pH <- median(d$pH,na.rm = TRUE)
-  d[is.na(d$Sulphates),]$Sulphates <- median(d$Sulphates,na.rm = TRUE)
-  d[is.na(d$Alcohol),]$Alcohol <- median(d$Alcohol,na.rm = TRUE)
-  d
-}
-training_trans<-impute(training_trans)
-evaluation_trans<-impute(evaluation_trans)
-
-```
 
 
 #### Transformation Analysis Of Numerical Features
 
 ##### **TARGET_FLAG**
 
-Let's see how the TARGET_FLAG and TARGET_NUM respond to each of the numerical features 
+Let's see how the TARGET_NUM respond to each of the numerical features 
 
 
 ```{r}
@@ -194,8 +243,7 @@ numResponse <- function(col,d){
     plot(y~x, main=paste0("TARGET ~ ",col),xlab=col, ylab="TARGET")
 
 }
-
-
+View(training_trans[,inputs_num])
 sapply(inputs_num,function(x){numResponse(x,training_trans)})
 #sapply(inputs_num,function(x){numResponse(x,evaluation_trans)})
 
@@ -212,37 +260,6 @@ hist(training_trans[,target_lm])
 ```
 
 
-##### **Transformations Implementation**
-
-Numerical Transformations:
-
-* Cap AcidicIndex at 11.8
-
-
-```{r}
-
-# Cap values
-
-d<- training_trans 
-capColumns <- function(d){
-  outputCols<- colnames(d)
-  
-
-  #* Cap AcidicIndex at 11.8
-  d[d$AcidIndex <0, 'AcidIndex'] <- 0
-  d[d$AcidIndex >=11.8, 'AcidIndex'] <- 11.8
-
-  d
-
-}
-
-training_trans <- capColumns(training_trans)
-evaluation_trans <- capColumns(evaluation_trans)
-
-
-
-
-```
 
 
 #### Final summary
@@ -266,7 +283,7 @@ Here's the distribution of the values for each of the variables
 
 Let's get a view of the normalized values:
 
-# Numerical target variable - Number of cases ordered
+# Numerical target variable - RECOMEND HOSPITAL
 
 For our descriptive stats & intuitive understanding, let's cut  the car Number of Cases Purchased
 
@@ -274,7 +291,7 @@ For our descriptive stats & intuitive understanding, let's cut  the car Number o
 
 require("reshape2")
 require("ggplot2")
-detach(package:plyr)
+#detach(package:plyr)
 require("dplyr")
 
 training_normalized <- cbind(data.frame(scale(training_trans[,inputs_num])),training_trans[,c(inputs_bin,target)])
@@ -289,10 +306,10 @@ bin_summary <- melt(training_normalized[,c(inputs_bin,"TARGET_FLAG")], measure.v
 
 ggplot(bin_summary, aes(variable, pct)) +   
   geom_bar(aes(fill = TARGET_FLAG), position = "dodge", stat="identity")+
-  guides(fill=guide_legend(title="Number of Cases Purchased Above Median")) +
+  guides(fill=guide_legend(title="Recomend Hospital Above Median")) +
    theme(legend.position="bottom")+
     coord_flip()+
-  labs(title="Boxplot of Cost of Number of Cases Purchased ~ Binary Predictors", y="Percent", x="Predictor")
+  labs(title="Boxplot of Recomend Hospital ~ Binary Predictors", y="Percent", x="Predictor")
 
 
 ```
@@ -302,11 +319,11 @@ possible correlations
 ```{r}
 
 
-summary_positive <- describe(training_normalized[training_normalized$TARGET_FLAG,c(target_bin,inputs)])[,c("mean","n")]
-summary_negative <- describe(training_normalized[!training_normalized$TARGET_FLAG,c(target_bin,inputs)])[,c("mean","n")]
+summary_positive <- describe(training_normalized[training_normalized$TARGET_FLAG,c(inputs)])[,c("mean","n")]
+summary_negative <- describe(training_normalized[!training_normalized$TARGET_FLAG,c(inputs)])[,c("mean","n")]
 summary_by_target <- merge(summary_positive,summary_negative,by="row.names")
-colnames(summary_by_target) <- c("Variable","Above Median Cases Purchased - Avg","Above Median Cases Purchased - n","Below Median Cases Purchased - Avg", "Below Median Cases Purchased - n")
-summary_by_target$delta <- abs(summary_by_target[,"Above Median Cases Purchased - Avg"]-summary_by_target[,"Below Median Cases Purchased - Avg"])
+colnames(summary_by_target) <- c("Variable","Above Median Recomend Hospital - Avg","Above Median Recomend Hospital - n","Below Median Recomend Hospital - Avg", "Below Median Recomend Hospital - n")
+summary_by_target$delta <- abs(summary_by_target[,"Above Median Recomend Hospital - Avg"]-summary_by_target[,"Below Median Recomend Hospital - Avg"])
 
 kable(summary_by_target[order(-summary_by_target$delta),])
 
